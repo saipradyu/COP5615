@@ -21,8 +21,8 @@ let squareSum (x: int) (k: int): uint64 =
     |> List.reduce (+)
 
 let isPerfectSquare (x: uint64) =
-    let y = round (sqrt (double x))
-    y * y = double x
+    let y = round (sqrt (double x)) |> uint64
+    y * y = x
 
 let split source size =
     seq {
@@ -69,7 +69,7 @@ let processMaster mailbox msg index =
             let workerRef = spawn system name workerBehavior
             async { workerRef <! Range(x, k) }
             |> Async.RunSynchronously)
-        index + 1
+        index
     | Done -> index + 1
     | _ -> failwith "Master recieved unsupported message"
 
@@ -90,7 +90,7 @@ match fsi.CommandLineArgs.Length with
     let args = fsi.CommandLineArgs |> Array.tail
     let n = args.[0] |> int
     let k = args.[1] |> int
-    let check = if n < actors then 2 else actors + 1
+    let check = if n < actors then 1 else actors
     let input = Input(n, k)
 
     let masterRef =
