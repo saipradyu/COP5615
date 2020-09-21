@@ -101,4 +101,4 @@ match fsi.CommandLineArgs.Length with
 | _ -> failwith "Requires a number and sequence length as imput"
 
 while flag do
-    ignore
+    ignore()
