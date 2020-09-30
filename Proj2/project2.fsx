@@ -32,7 +32,28 @@ let buildTopology n s =
             map <- map.Add(x, nlist))
         |> ignore
         map
-    | "2d" -> map
+    | "2d" ->
+        [ 1 .. n ]
+        |> List.map (fun x ->
+            let root = sqrt (float x) |> int
+
+            let nlist =
+                List.filter (fun y ->
+                    if (y % root = 0) then
+                        (y = x + root || y = x - 1 || y = x - root)
+                    elif (y % root = 1) then
+                        (y = x + root || y = x - 1 || y = x - root)
+                    else
+                        (y = x
+                         + root
+                         || y = x - 1
+                         || y = x + 1
+                         || y = x - root)) [ 1 .. n ]
+
+            map <- map.Add(x, nlist))
+        |> ignore
+        map
+
     | "imp2d" -> map
     | _ -> map
 
