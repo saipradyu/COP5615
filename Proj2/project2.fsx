@@ -35,14 +35,14 @@ let buildTopology n s =
     | "2d" ->
         [ 1 .. n ]
         |> List.map (fun x ->
-            let root = sqrt (float x) |> int
+            let root = sqrt (float n) |> int
 
             let nlist =
                 List.filter (fun y ->
-                    if (y % root = 0) then
+                    if (x % root = 0) then
                         (y = x + root || y = x - 1 || y = x - root)
-                    elif (y % root = 1) then
-                        (y = x + root || y = x - 1 || y = x - root)
+                    elif (x % root = 1) then
+                        (y = x + root || y = x + 1 || y = x - root)
                     else
                         (y = x
                          + root
