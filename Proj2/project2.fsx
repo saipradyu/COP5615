@@ -109,4 +109,24 @@ let observerBehavior count (inbox: Actor<Message>) =
 let observerRef =
     spawn system "observer" (observerBehavior 0)
 
+let gossipBehavior ref count (inbox: Actor<Message>) =
+    let rec loop count =
+        actor {
+            let! msg = inbox.Receive()
+
+            match msg with
+            | Rumor (_) ->
+                if (count + 1 <= 10) then
+                    let neighRef = getRandomNeighbor ref
+                    neighRef <! msg
+                if (count + 1 = 10)
+                then observerRef <! Converge "Worker has converged"
+            | _ -> failwith "Worker received unsupported message"
+
+            return! loop (count + 1)
+        }
+
+    loop count
+
+
 System.Console.ReadLine |> ignore
