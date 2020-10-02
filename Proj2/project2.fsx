@@ -13,6 +13,10 @@ let roundNodes n s =
     | "imp2d" -> Math.Pow(Math.Round(sqrt (float n)), 2.0) |> int
     | _ -> n
 
+let pickRandom (l: List<_>) =
+    let r = System.Random()
+    l.[r.Next(l.Length)]
+
 let buildTopology n s =
     let mutable map = Map.empty
     match s with
@@ -53,8 +57,34 @@ let buildTopology n s =
             map <- map.Add(x, nlist))
         |> ignore
         map
+    | "imp2d" ->
+        [ 1 .. n ]
+        |> List.map (fun x ->
+            let root = sqrt (float n) |> int
 
-    | "imp2d" -> map
+            let nlist =
+                List.filter (fun y ->
+                    if (x % root = 0) then
+                        (y = x + root || y = x - 1 || y = x - root)
+                    elif (x % root = 1) then
+                        (y = x + root || y = x + 1 || y = x - root)
+                    else
+                        (y = x
+                         + root
+                         || y = x - 1
+                         || y = x + 1
+                         || y = x - root)) [ 1 .. n ]
+
+            let remlist =
+                [ 1 .. n ]
+                |> List.filter (fun m -> m <> x && not (nlist |> List.contains m))
+
+            let random = pickRandom remlist
+            let randomNList = random :: nlist
+
+            map <- map.Add(x, randomNList))
+        |> ignore
+        map
     | _ -> map
 
 match fsi.CommandLineArgs.Length with
