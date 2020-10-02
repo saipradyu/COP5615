@@ -128,5 +128,13 @@ let gossipBehavior ref count (inbox: Actor<Message>) =
 
     loop count
 
+let workerRef =
+    [ 1 .. nodes ]
+    |> List.map (fun x ->
+        let name = "worker" + string x
+        spawn system name (gossipBehavior x 0))
+    |> pickRandom
+
+workerRef <! Rumor "starting a random rumor"
 
 System.Console.ReadLine |> ignore
