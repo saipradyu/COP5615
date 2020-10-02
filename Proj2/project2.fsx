@@ -7,6 +7,10 @@ open Akka.FSharp
 
 let system = ActorSystem.Create("FSharp")
 
+type Message =
+    | Rumor of string
+    | Converge of string
+
 let roundNodes n s =
     match s with
     | "2d"
@@ -95,3 +99,32 @@ let args = fsi.CommandLineArgs |> Array.tail
 let topology = args.[1]
 let algorithm = args.[2]
 let nodes = roundNodes (args.[0] |> int) topology
+let topologyMap = buildTopology nodes topology
+
+let getWorkerRef s =
+    let actorPath = @"akka://FSharp/user/worker" + string s
+    select actorPath system
+
+let getRandomNeighbor x =
+    let nlist = (topologyMap.TryFind x).Value
+    let random = pickRandom nlist
+    getWorkerRef random
+
+let observerBehavior count (inbox: Actor<Message>) =
+    let rec loop count =
+        actor {
+            let! msg = inbox.Receive()
+
+            match msg with
+            | Converge (_) -> if (count + 1 = nodes) then printfn "Algorithm has converged"
+            | _ -> failwith "Observer received unsupported message"
+
+            return! loop (count + 1)
+        }
+
+    loop count
+
+let observerRef =
+    spawn system "observer" (observerBehavior 0)
+
+System.Console.ReadLine |> ignore
