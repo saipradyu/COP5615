@@ -21,6 +21,16 @@ let pickRandom (l: List<_>) =
     let r = System.Random()
     l.[r.Next(l.Length)]
 
+let gridNeighbors x n =
+    let r = sqrt (float n) |> int
+    [ 1 .. n ]
+    |> List.filter (fun y ->
+        if (x % r = 0)
+        then (y = x + r || y = x - 1 || y = x - r)
+        elif (x % r = 1)
+        then (y = x + r || y = x + 1 || y = x - r)
+        else (y = x + r || y = x - 1 || y = x + 1 || y = x - r))
+
 let buildTopology n s =
     let mutable map = Map.empty
     match s with
@@ -43,41 +53,14 @@ let buildTopology n s =
     | "2d" ->
         [ 1 .. n ]
         |> List.map (fun x ->
-            let root = sqrt (float n) |> int
-
-            let nlist =
-                List.filter (fun y ->
-                    if (x % root = 0) then
-                        (y = x + root || y = x - 1 || y = x - root)
-                    elif (x % root = 1) then
-                        (y = x + root || y = x + 1 || y = x - root)
-                    else
-                        (y = x
-                         + root
-                         || y = x - 1
-                         || y = x + 1
-                         || y = x - root)) [ 1 .. n ]
-
+            let nlist = gridNeighbors x n
             map <- map.Add(x, nlist))
         |> ignore
         map
     | "imp2d" ->
         [ 1 .. n ]
         |> List.map (fun x ->
-            let root = sqrt (float n) |> int
-
-            let nlist =
-                List.filter (fun y ->
-                    if (x % root = 0) then
-                        (y = x + root || y = x - 1 || y = x - root)
-                    elif (x % root = 1) then
-                        (y = x + root || y = x + 1 || y = x - root)
-                    else
-                        (y = x
-                         + root
-                         || y = x - 1
-                         || y = x + 1
-                         || y = x - root)) [ 1 .. n ]
+            let nlist = gridNeighbors x n
 
             let remlist =
                 [ 1 .. n ]
@@ -85,7 +68,6 @@ let buildTopology n s =
 
             let random = pickRandom remlist
             let randomNList = random :: nlist
-
             map <- map.Add(x, randomNList))
         |> ignore
         map
