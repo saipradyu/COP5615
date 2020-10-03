@@ -10,6 +10,7 @@ let system = ActorSystem.Create("FSharp")
 type Message =
     | Rumor of string
     | Converge of string
+    | Gossip of string
 
 let roundNodes n s =
     match s with
@@ -98,7 +99,11 @@ let observerBehavior count (inbox: Actor<Message>) =
             let! msg = inbox.Receive()
 
             match msg with
-            | Converge (_) -> if (count + 1 = nodes) then printfn "Algorithm has converged"
+            | Converge (s) ->
+                printfn "%s" s
+                if (count + 1 = nodes) then
+                    printfn "Gossip protocol converged"
+                    exit 0
             | _ -> failwith "Observer received unsupported message"
 
             return! loop (count + 1)
@@ -109,21 +114,32 @@ let observerBehavior count (inbox: Actor<Message>) =
 let observerRef =
     spawn system "observer" (observerBehavior 0)
 
+let processGossip msg ref count =
+    let self = getWorkerRef ref
+    match msg with
+    | Rumor (s) ->
+        if (count = 0) then self <! Gossip s
+        if (count + 1 = 10) then
+            let conmsg =
+                "Worker " + string ref + " has converged"
+
+            observerRef <! Converge conmsg
+        count + 1
+    | Gossip (s) ->
+        if (count <= 10) then
+            let neighRef = getRandomNeighbor ref
+            neighRef <! Rumor(s)
+            self <! Gossip(s)
+        count
+    | _ -> failwith "Worker received unsupported message"
+
+
 let gossipBehavior ref count (inbox: Actor<Message>) =
     let rec loop count =
         actor {
             let! msg = inbox.Receive()
-
-            match msg with
-            | Rumor (_) ->
-                if (count + 1 <= 10) then
-                    let neighRef = getRandomNeighbor ref
-                    neighRef <! msg
-                if (count + 1 = 10)
-                then observerRef <! Converge "Worker has converged"
-            | _ -> failwith "Worker received unsupported message"
-
-            return! loop (count + 1)
+            let newCount = processGossip msg ref count
+            return! loop newCount
         }
 
     loop count
