@@ -114,26 +114,28 @@ let observerBehavior count (inbox: Actor<Message>) =
 let observerRef =
     spawn system "observer" (observerBehavior 0)
 
-let processGossip msg ref count =
+
+let spreadGossip ref s =
     let self = getWorkerRef ref
+    let neighRef = getRandomNeighbor ref
+    neighRef <! Rumor(s)
+    self <! Gossip s
+
+let processGossip msg ref count =
     match msg with
     | Rumor (s) ->
-        if (count = 0) then self <! Gossip s
-        if (count + 1 = 10) then
+        if (count >= 0 && count < 20) then spreadGossip ref s
+        if (count = 20) then
             let conmsg =
                 "Worker " + string ref + " has converged"
 
             observerRef <! Converge conmsg
         count + 1
     | Gossip (s) ->
-        if (count <= 10) then
-            let neighRef = getRandomNeighbor ref
-            neighRef <! Rumor(s)
-            self <! Gossip(s)
+        if (count <= 20) then spreadGossip ref s
         count
     | _ -> failwith "Worker received unsupported message"
-
-
+    
 let gossipBehavior ref count (inbox: Actor<Message>) =
     let rec loop count =
         actor {
