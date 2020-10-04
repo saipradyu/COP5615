@@ -6,11 +6,13 @@ open Akka.Actor
 open Akka.FSharp
 
 let system = ActorSystem.Create("FSharp")
+let mutable flag = true
 
 type Message =
     | Rumor of string
     | Converge of string
     | Gossip of string
+    | Update of int
 
 let roundNodes n s =
     match s with
@@ -63,11 +65,11 @@ let buildTopology n s =
         |> List.map (fun x ->
             let nlist = gridNeighbors x n
 
-            let remlist =
+            let random =
                 [ 1 .. n ]
                 |> List.filter (fun m -> m <> x && not (nlist |> List.contains m))
+                |> pickRandom
 
-            let random = pickRandom remlist
             let randomNList = random :: nlist
             map <- map.Add(x, randomNList))
         |> ignore
@@ -83,15 +85,29 @@ let topology = args.[1]
 let algorithm = args.[2]
 let nodes = roundNodes (args.[0] |> int) topology
 let topologyMap = buildTopology nodes topology
+let gossipcount = if topology = "imp2d" then nodes else 10
 
 let getWorkerRef s =
     let actorPath = @"akka://FSharp/user/worker" + string s
     select actorPath system
 
-let getRandomNeighbor x =
+let getRandomNeighbor x l =
     let nlist = (topologyMap.TryFind x).Value
-    let random = pickRandom nlist
+
+    let rem =
+        nlist
+        |> List.filter (fun x -> not (l |> List.contains x))
+
+    let random =
+        if rem.IsEmpty then x else pickRandom rem
+
     getWorkerRef random
+
+let updateNeighbors x =
+    let nlist = (topologyMap.TryFind x).Value
+    nlist
+    |> List.map (getWorkerRef)
+    |> List.iter (fun ref -> ref <! Update x)
 
 let observerBehavior count (inbox: Actor<Message>) =
     let rec loop count =
@@ -102,8 +118,8 @@ let observerBehavior count (inbox: Actor<Message>) =
             | Converge (s) ->
                 printfn "%s" s
                 if (count + 1 = nodes) then
-                    printfn "Gossip protocol converged"
-                    exit 0
+                    printfn "%s algorithm has converged" algorithm
+                    flag <- false
             | _ -> failwith "Observer received unsupported message"
 
             return! loop (count + 1)
@@ -114,45 +130,47 @@ let observerBehavior count (inbox: Actor<Message>) =
 let observerRef =
     spawn system "observer" (observerBehavior 0)
 
-
-let spreadGossip ref s =
+let spreadGossip ref s rlist =
     let self = getWorkerRef ref
-    let neighRef = getRandomNeighbor ref
+    let neighRef = getRandomNeighbor ref rlist
     neighRef <! Rumor(s)
     self <! Gossip s
 
-let processGossip msg ref count =
+let processGossip msg ref count rlist =
     match msg with
     | Rumor (s) ->
-        if (count >= 0 && count < 20) then spreadGossip ref s
-        if (count = 20) then
+        if (count >= 0 && count <= gossipcount) then spreadGossip ref s rlist
+        if (count = gossipcount) then
             let conmsg =
-                "Worker " + string ref + " has converged"
+                "Gossip worker " + string ref + " has converged"
 
             observerRef <! Converge conmsg
-        count + 1
+            updateNeighbors ref
+        count + 1, rlist
     | Gossip (s) ->
-        if (count <= 20) then spreadGossip ref s
-        count
+        if (count <= gossipcount) then spreadGossip ref s rlist
+        count, rlist
+    | Update (s) -> count, s :: rlist
     | _ -> failwith "Worker received unsupported message"
-    
-let gossipBehavior ref count (inbox: Actor<Message>) =
-    let rec loop count =
+
+let gossipBehavior ref (inbox: Actor<Message>) =
+    let rec loop count dlist =
         actor {
             let! msg = inbox.Receive()
-            let newCount = processGossip msg ref count
-            return! loop newCount
+            let newCount, newList = processGossip msg ref count dlist
+            return! loop newCount newList
         }
 
-    loop count
+    loop 0 List.Empty
 
 let workerRef =
     [ 1 .. nodes ]
     |> List.map (fun x ->
         let name = "worker" + string x
-        spawn system name (gossipBehavior x 0))
+        spawn system name (gossipBehavior x))
     |> pickRandom
 
 workerRef <! Rumor "starting a random rumor"
 
-System.Console.ReadLine |> ignore
+while flag do
+    ignore ()
