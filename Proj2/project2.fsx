@@ -85,7 +85,7 @@ let topology = args.[1]
 let algorithm = args.[2]
 let nodes = roundNodes (args.[0] |> int) topology
 let topologyMap = buildTopology nodes topology
-let gossipcount = if topology = "imp2d" then nodes else 10
+let gossipcount = 10
 
 let getWorkerRef s =
     let actorPath = @"akka://FSharp/user/worker" + string s
@@ -103,11 +103,14 @@ let getRandomNeighbor x l =
 
     getWorkerRef random
 
-let updateNeighbors x =
-    let nlist = (topologyMap.TryFind x).Value
-    nlist
+let broadcastConvergence x =
+    [ 1 .. nodes ]
     |> List.map (getWorkerRef)
     |> List.iter (fun ref -> ref <! Update x)
+
+let isNeighbor x s =
+    let nlist = (topologyMap.TryFind x).Value
+    nlist |> List.contains s
 
 let observerBehavior count (inbox: Actor<Message>) =
     let rec loop count =
@@ -130,28 +133,32 @@ let observerBehavior count (inbox: Actor<Message>) =
 let observerRef =
     spawn system "observer" (observerBehavior 0)
 
-let spreadGossip ref s rlist =
-    let self = getWorkerRef ref
-    let neighRef = getRandomNeighbor ref rlist
+let spreadRumor ref s dlist =
+    let neighRef = getRandomNeighbor ref dlist
     neighRef <! Rumor(s)
-    self <! Gossip s
 
-let processGossip msg ref count rlist =
-    match msg with
-    | Rumor (s) ->
-        if (count >= 0 && count <= gossipcount) then spreadGossip ref s rlist
-        if (count = gossipcount) then
-            let conmsg =
-                "Gossip worker " + string ref + " has converged"
+let processGossip msg ref count dlist =
+    let self = getWorkerRef ref
+    if count < gossipcount then
+        match msg with
+        | Rumor (s) ->
+            spreadRumor ref s dlist
+            if count = 0 then self <! Gossip(s)
+            if count + 1 = gossipcount then
+                let conmsg =
+                    "Worker " + string ref + " has converged"
 
-            observerRef <! Converge conmsg
-            updateNeighbors ref
-        count + 1, rlist
-    | Gossip (s) ->
-        if (count <= gossipcount) then spreadGossip ref s rlist
-        count, rlist
-    | Update (s) -> count, s :: rlist
-    | _ -> failwith "Worker received unsupported message"
+                observerRef <! Converge conmsg
+                broadcastConvergence ref
+            count + 1, dlist
+        | Gossip (s) ->
+            spreadRumor ref s dlist
+            self <! Gossip(s)
+            count, dlist
+        | Update (s) -> if isNeighbor ref s then count, s :: dlist else count, dlist
+        | _ -> failwith "Worker received unsupported message"
+    else
+        count + 1, dlist
 
 let gossipBehavior ref (inbox: Actor<Message>) =
     let rec loop count dlist =
