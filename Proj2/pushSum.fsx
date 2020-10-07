@@ -162,7 +162,6 @@ let processGossip msg ref count dlist =
             if count + 1 = gossipcount then
                 let conmsg =
                     "Worker " + string ref + " has converged"
-
                 observerRef <! Converge conmsg
                 broadcastConvergence ref
             count + 1, dlist
@@ -170,7 +169,7 @@ let processGossip msg ref count dlist =
             spreadRumor ref s dlist
             self <! Gossip(s)
             count, dlist
-        | Update (s) -> if isNeighbor ref s then count, s :: dlist else count, dlist
+        | Update (s) ->  count, s :: dlist
         | _ -> failwith "Worker received unsupported message"
     else
         count + 1, dlist
@@ -196,28 +195,13 @@ let getPSRandomNeighbour x =
     let random = nlist |> pickRandom
     getWorkerRef random
 
-(* let getRandomNeighbor x l =
-    let nlist = (topologyMap.TryFind x).Value
-
-    let rem =
-        nlist
-        |> List.filter (fun x -> not (l |> List.contains x))
-
-    let alive = [1..nodes]
-                |> List.filter (fun b -> not(convergedNodeList |> List.contains b))
-
-    let random =
-         if rem.IsEmpty then pickRandom alive else pickRandom rem
-
-    getWorkerRef random *)
-
-let processPushsum ref msg convergenceCount s w =
+let processPushsum ref msg convergenceCount s w convergedNodeList=
     if convergenceCount < 3 then
         match msg with
         | Rumor (_) ->
-            let neighRef = getPSRandomNeighbour ref
+            let neighRef = getRandomNeighbor ref convergedNodeList
             neighRef <! PushSum(s / 2.0, w / 2.0)
-            (convergenceCount, (s/2.0), (w/2.0))
+            (convergenceCount, (s/2.0), (w/2.0), convergedNodeList)
         | PushSum (a, b) ->
             printfn "Worker %i received push sum message with %A and %A" ref a b
             let ss = s + a
@@ -227,28 +211,30 @@ let processPushsum ref msg convergenceCount s w =
                     convergenceCount + 1 
                 else 
                     0
-            let neighRef = getPSRandomNeighbour ref
+            let neighRef = getRandomNeighbor ref convergedNodeList
             neighRef <! PushSum(ss / 2.0, ww / 2.0)
             if cc = 3 then
                 let conmsg =
                     "Worker " + string ref + " has converged"
                 observerRef <! Converge conmsg
+                broadcastConvergence ref
             let e, f = s/w, ss/ww
             printfn "Worker %i : %b  %A and %A \n" ref (checkConvergence e f) e f
-            (cc, ss / 2.0, ww / 2.0)
+            (cc, ss / 2.0, ww / 2.0, convergedNodeList)
+        | Update (ref) ->  convergenceCount,s,w,ref :: convergedNodeList
         | _ -> failwith "Worker received unsupported message"
     else
-        (convergenceCount, s, w)
+        (convergenceCount, s, w, convergedNodeList)
 
 let pushSumProcessor ref (inbox: Actor<Message>) =
-    let rec loop count s w =
+    let rec loop count s w convergedNodeList=
         actor {
             let! msg = inbox.Receive()
-            let cc, ss, ww = processPushsum ref msg count s w
-            return! loop cc ss ww
+            let cc, ss, ww, newList = processPushsum ref msg count s w convergedNodeList
+            return! loop cc ss ww newList
         }
 
-    loop 0 (ref |> double) 1.0
+    loop 0 (ref |> double) 1.0 List.Empty
 
 (*******************************************)
 
