@@ -7,8 +7,6 @@ open Akka.FSharp
 
 let system = ActorSystem.Create("FSharp")
 let mutable flag = true
-
-
 (*******************Topology************************)
 type Message =
     | Rumor of string
@@ -45,7 +43,7 @@ let buildTopology n s =
         |> List.map (fun x ->
             let nlist = List.filter (fun y -> x <> y) [ 1 .. n ]
             map <- map.Add(x, nlist))
-        |> ignore
+        |> ignore  /// Use this if you are only calling the function for its side effects, and do not want the return value.
         map
     | "line" ->
         [ 1 .. n ]
@@ -79,33 +77,39 @@ let buildTopology n s =
         map
     | _ -> map
 
-
 (*******************Initialization************************)
 
-let topology = "imp2d"
+let topology = "line"
 let algorithm = "pushsum"
 let nodes = 10
 let topologyMap = buildTopology nodes topology
 let gossipcount = if topology = "imp2d" then nodes else 10
-let intialMessage : Message = 
+let intialMessage = 
     if algorithm ="pushsum" then
         PushSum([1..nodes]|> pickRandom|>float, 1.0)
     else
         Rumor "starting a random rumor"
+
 (*******************Utility************************)
 let getWorkerRef s =
     let actorPath = @"akka://FSharp/user/worker" + string s
     select actorPath system
 
-let getRandomNeighbor x l =
+
+// Once all the neighbors converge, the node sends messages to iteself -> Can check (hack)
+
+let getRandomNeighbor x convergedNodeList =
     let nlist = (topologyMap.TryFind x).Value
 
     let rem =
         nlist
-        |> List.filter (fun x -> not (l |> List.contains x))
+        |> List.filter (fun x -> not (convergedNodeList |> List.contains x))
+
+    let alive = [1..nodes]
+                |> List.filter (fun b -> not(convergedNodeList |> List.contains b))
 
     let random =
-        if rem.IsEmpty then x else pickRandom rem
+         if rem.IsEmpty then pickRandom alive else pickRandom rem
 
     getWorkerRef random
 
@@ -126,7 +130,10 @@ let observerBehavior count (inbox: Actor<Message>) =
             match msg with
             | Converge (s) ->
                 printfn "%s" s
-                if (count + 1 = nodes) then
+                if (algorithm = "gossip" && count + 1 = nodes) then
+                    printfn "%s algorithm has converged" algorithm
+                    flag <- false
+                elif (algorithm = "pushsum" && count + 1 = 1) then
                     printfn "%s algorithm has converged" algorithm
                     flag <- false
             | _ -> failwith "Observer received unsupported message"
@@ -189,6 +196,21 @@ let getPSRandomNeighbour x =
     let random = nlist |> pickRandom
     getWorkerRef random
 
+(* let getRandomNeighbor x l =
+    let nlist = (topologyMap.TryFind x).Value
+
+    let rem =
+        nlist
+        |> List.filter (fun x -> not (l |> List.contains x))
+
+    let alive = [1..nodes]
+                |> List.filter (fun b -> not(convergedNodeList |> List.contains b))
+
+    let random =
+         if rem.IsEmpty then pickRandom alive else pickRandom rem
+
+    getWorkerRef random *)
+
 let processPushsum ref msg convergenceCount s w =
     if convergenceCount < 3 then
         match msg with
@@ -197,7 +219,7 @@ let processPushsum ref msg convergenceCount s w =
             neighRef <! PushSum(s / 2.0, w / 2.0)
             (convergenceCount, (s/2.0), (w/2.0))
         | PushSum (a, b) ->
-            // printfn "Worker %i received push sum message with %A and %A" ref a b
+            printfn "Worker %i received push sum message with %A and %A" ref a b
             let ss = s + a
             let ww = w + b
             let cc =
@@ -212,7 +234,7 @@ let processPushsum ref msg convergenceCount s w =
                     "Worker " + string ref + " has converged"
                 observerRef <! Converge conmsg
             let e, f = s/w, ss/ww
-            // printfn "Worker %i : %b  %A and %A \n" ref (checkConvergence e f) e f
+            printfn "Worker %i : %b  %A and %A \n" ref (checkConvergence e f) e f
             (cc, ss / 2.0, ww / 2.0)
         | _ -> failwith "Worker received unsupported message"
     else
@@ -240,29 +262,24 @@ let pushSumProcessor ref (inbox: Actor<Message>) =
 // let nodes = roundNodes (args.[0] |> int) topology
 // let topologyMap = buildTopology nodes topology
 // let gossipcount = 10
-
-
-
 // let args = fsi.CommandLineArgs |> Array.tail
 
+let workerBehavior x = if algorithm = "gossip" then gossipBehavior x else pushSumProcessor x
 
-let workerRef msg=
-    match msg with
-    | Rumor (_) ->
-        [ 1 .. nodes ]
-        |> List.map (fun x ->
-            let name = "worker" + string x
-            spawn system name (gossipBehavior x))
-        |> pickRandom
-    | PushSum(a,b) -> 
-        [ 1 .. nodes ]
-        |> List.map (fun x ->
-            let name = "worker" + string x
-            spawn system name (pushSumProcessor x))
-        |> pickRandom
+let workerRef =
+    [ 1 .. nodes ]
+    |> List.map (fun x ->
+        let name = "worker" + string x
+        spawn system name (workerBehavior x))
+    |> pickRandom
 
-let workerThread = workerRef intialMessage
-workerThread
+let inputPS = match intialMessage with
+              | PushSum (a,b) ->
+                    printfn "Input values s = %f w = %f " a b
+              | _ ->
+                    printfn "Invalid message!!"
+// inputPS 
+workerRef <! intialMessage
 
 while flag do
     ignore ()

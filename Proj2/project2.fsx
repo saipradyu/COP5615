@@ -13,6 +13,7 @@ type Message =
     | Converge of string
     | Gossip of string
     | Update of int
+    | PushSum of float*float
 
 let roundNodes n s =
     match s with
@@ -76,16 +77,28 @@ let buildTopology n s =
         map
     | _ -> map
 
-match fsi.CommandLineArgs.Length with
-| 4 -> ignore
-| _ -> failwith "Requires number of nodes, topology and algorithm as input"
+// match fsi.CommandLineArgs.Length with
+// | 4 -> ignore
+// | _ -> failwith "Requires number of nodes, topology and algorithm as input"
 
-let args = fsi.CommandLineArgs |> Array.tail
-let topology = args.[1]
-let algorithm = args.[2]
-let nodes = roundNodes (args.[0] |> int) topology
+// let args = fsi.CommandLineArgs |> Array.tail
+// let topology = args.[1]
+// let algorithm = args.[2]
+// let nodes = roundNodes (args.[0] |> int) topology
+// let topologyMap = buildTopology nodes topology
+// let gossipcount = 10
+
+
+let topology = "line"
+let algorithm = "gossip"
+let nodes = 10
 let topologyMap = buildTopology nodes topology
-let gossipcount = 10
+let gossipcount = if topology = "imp2d" then nodes else 10
+let intialMessage = 
+    if algorithm ="pushsum" then
+        PushSum([1..nodes]|> pickRandom|>float, 1.0)
+    else
+        Rumor "starting a random rumor"
 
 let getWorkerRef s =
     let actorPath = @"akka://FSharp/user/worker" + string s
