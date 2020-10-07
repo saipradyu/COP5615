@@ -14,6 +14,7 @@ type Message =
     | Converge of string
     | Gossip of string
     | Update of int
+    | PushSum of float * float
 
 let roundNodes n s =
     match s with
@@ -171,11 +172,57 @@ let gossipBehavior ref (inbox: Actor<Message>) =
 
     loop 0 List.Empty
 
+let processPushsum ref msg c s w l =
+    if c < 3 then
+        match msg with
+        | Rumor (_) ->
+            let neighRef = getRandomNeighbor ref l
+            neighRef <! PushSum(s / 2.0, w / 2.0)
+            c, s / 2.0, w / 2.0, l
+        | PushSum (a, b) ->
+            ///printfn "Worker %i received push sum message with %A and %A" ref a b
+            let ss = s + a
+            let ww = w + b
+
+            let cc =
+                if abs ((s / w) - (ss / ww)) < 1.0e-10 then c + 1 else 0
+
+            let neighRef = getRandomNeighbor ref l
+            neighRef <! PushSum(ss / 2.0, ww / 2.0)
+            if cc = 3 then
+                let conmsg =
+                    "Worker " + string ref + " has converged"
+
+                observerRef <! Converge conmsg
+                broadcastConvergence ref
+
+            let e, f = s / w, ss / ww
+            printfn "Worker %i has %A and %A \n" ref e f
+            cc, ss / 2.0, ww / 2.0, l
+        | Update (x) -> c, s, w, x :: l
+        | _ -> failwith "Worker received unsupported message"
+    else
+        c, s, w, l
+
+let pushsumBehavior ref (inbox: Actor<Message>) =
+    let rec loop count s w l =
+        actor {
+            let! msg = inbox.Receive()
+            let cc, ss, ww, ll = processPushsum ref msg count s w l
+            return! loop cc ss ww ll
+        }
+
+    loop 0 (ref |> double) 1.0 List.empty
+
+
+let workerBehavior x =
+    if algorithm = "gossip" then gossipBehavior x else pushsumBehavior x
+
 let workerRef =
     [ 1 .. nodes ]
     |> List.map (fun x ->
         let name = "worker" + string x
-        spawn system name (gossipBehavior x))
+        spawn system name (workerBehavior x))
     |> pickRandom
 
 workerRef <! Rumor "starting a random rumor"
