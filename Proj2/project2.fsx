@@ -109,10 +109,14 @@ let getRandomNeighbor x l =
 
     let rem =
         nlist
-        |> List.filter (fun x -> not (l |> List.contains x))
+        |> List.filter (fun a -> not (l |> List.contains a))
+
+    let alive =
+        [ 1 .. nodes ]
+        |> List.filter (fun b -> not (l |> List.contains b))
 
     let random =
-        if rem.IsEmpty then x else pickRandom rem
+        if rem.IsEmpty then pickRandom alive else pickRandom rem
 
     getWorkerRef random
 
@@ -120,10 +124,6 @@ let broadcastConvergence x =
     [ 1 .. nodes ]
     |> List.map (getWorkerRef)
     |> List.iter (fun ref -> ref <! Update x)
-
-let isNeighbor x s =
-    let nlist = (topologyMap.TryFind x).Value
-    nlist |> List.contains s
 
 let observerBehavior count (inbox: Actor<Message>) =
     let rec loop count =
@@ -168,7 +168,7 @@ let processGossip msg ref count dlist =
             spreadRumor ref s dlist
             self <! Gossip(s)
             count, dlist
-        | Update (s) -> if isNeighbor ref s then count, s :: dlist else count, dlist
+        | Update (s) -> count, s :: dlist
         | _ -> failwith "Worker received unsupported message"
     else
         count + 1, dlist
