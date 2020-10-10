@@ -97,19 +97,19 @@ let getWorkerRef s =
 
 
 // Once all the neighbors converge, the node sends messages to iteself -> Can check (hack)
-
-let getRandomNeighbor x convergedNodeList =
+let getRandomNeighbor x l =
     let nlist = (topologyMap.TryFind x).Value
 
     let rem =
         nlist
-        |> List.filter (fun x -> not (convergedNodeList |> List.contains x))
+        |> List.filter (fun a -> not (l |> List.contains a))
 
-    let alive = [1..nodes]
-                |> List.filter (fun b -> not(convergedNodeList |> List.contains b))
+    let alive =
+        [ 1 .. nodes ]
+        |> List.filter (fun b -> not (l |> List.contains b))
 
     let random =
-         if rem.IsEmpty then pickRandom alive else pickRandom rem
+        if rem.IsEmpty then pickRandom alive else pickRandom rem
     // printfn "Sender = %i, Receiver = %i, Neighbors = %A" x random nlist
 
     getWorkerRef random
@@ -118,10 +118,6 @@ let broadcastConvergence x =
     [ 1 .. nodes ]
     |> List.map (getWorkerRef)
     |> List.iter (fun ref -> ref <! Update x)
-
-let isNeighbor x s =
-    let nlist = (topologyMap.TryFind x).Value
-    nlist |> List.contains s
 
 let observerBehavior count (inbox: Actor<Message>) =
     let rec loop count =
