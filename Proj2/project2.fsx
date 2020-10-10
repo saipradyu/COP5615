@@ -7,6 +7,7 @@ open Akka.FSharp
 
 let system = ActorSystem.Create("FSharp")
 let mutable flag = true
+let sw = System.Diagnostics.Stopwatch()
 
 type Message =
     | Rumor of string
@@ -85,27 +86,27 @@ let topology = args.[1]
 let algorithm = args.[2]
 let nodes = roundNodes (args.[0] |> int) topology
 let topologyMap = buildTopology nodes topology
-let gossipcount = 10
+let gossipcount = 60
 
 let getWorkerRef s =
     let actorPath = @"akka://FSharp/user/worker" + string s
     select actorPath system
 
+let toList s = Set.fold (fun l m -> m::l) [] s
+
 let getRandomNeighbor x l =
     let nlist = (topologyMap.TryFind x).Value
+    let fin = Set.ofList l
 
     let rem =
         nlist
-        |> List.filter (fun a -> not (l |> List.contains a))
+        |> List.filter (fun a -> not (fin |> Set.contains a)) 
 
-    let alive =
-        [ 1 .. nodes ]
-        |> List.filter (fun b -> not (l |> List.contains b))
-
-    let random =
-        if rem.IsEmpty then pickRandom alive else pickRandom rem
-
-    getWorkerRef random
+    if rem.IsEmpty then
+        let alive = toList((Set.ofSeq { 1 .. nodes }) - fin)
+        getWorkerRef (pickRandom alive)
+    else 
+       getWorkerRef (pickRandom rem)
 
 let broadcastConvergence x =
     [ 1 .. nodes ]
@@ -119,9 +120,9 @@ let observerBehavior count (inbox: Actor<Message>) =
 
             match msg with
             | Converge (s) ->
-                printfn "%s" s
                 if (count + 1 = nodes) then
-                    printfn "%s algorithm has converged" algorithm
+                    sw.Stop()
+                    printfn "Gossip algorithm has converged in %A" sw.ElapsedMilliseconds
                     flag <- false
             | _ -> failwith "Observer received unsupported message"
 
@@ -178,6 +179,7 @@ let workerRef =
     |> pickRandom
 
 workerRef <! Rumor "starting a random rumor"
+sw.Start()
 
 while flag do
     ignore ()
