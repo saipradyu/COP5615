@@ -79,14 +79,14 @@ let buildTopology n s =
 
 (*******************Initialization************************)
 
-let topology = "line"
+let topology = "2d"
 let algorithm = "pushsum"
-let nodes = 10
+let nodes = roundNodes 1000 topology
 let topologyMap = buildTopology nodes topology
 let gossipcount = if topology = "imp2d" then nodes else 10
 let intialMessage = 
     if algorithm ="pushsum" then
-        PushSum([1..nodes]|> pickRandom|>float, 1.0)
+        PushSum([1..nodes] |> pickRandom |>float, 1.0)
     else
         Rumor "starting a random rumor"
 
@@ -110,6 +110,7 @@ let getRandomNeighbor x convergedNodeList =
 
     let random =
          if rem.IsEmpty then pickRandom alive else pickRandom rem
+    // printfn "Sender = %i, Receiver = %i, Neighbors = %A" x random nlist
 
     getWorkerRef random
 
@@ -126,7 +127,6 @@ let observerBehavior count (inbox: Actor<Message>) =
     let rec loop count =
         actor {
             let! msg = inbox.Receive()
-
             match msg with
             | Converge (s) ->
                 printfn "%s" s
@@ -137,10 +137,8 @@ let observerBehavior count (inbox: Actor<Message>) =
                     printfn "%s algorithm has converged" algorithm
                     flag <- false
             | _ -> failwith "Observer received unsupported message"
-
             return! loop (count + 1)
         }
-
     loop count
 
 let observerRef =
@@ -203,7 +201,9 @@ let processPushsum ref msg convergenceCount s w convergedNodeList=
             neighRef <! PushSum(s / 2.0, w / 2.0)
             (convergenceCount, (s/2.0), (w/2.0), convergedNodeList)
         | PushSum (a, b) ->
-            printfn "Worker %i received push sum message with %A and %A" ref a b
+            // let ratio = a/b
+            // printfn "pushsum = %f" ratio
+            // printfn "Worker %i received push sum message with %A and %A" ref a b
             let ss = s + a
             let ww = w + b
             let cc =
@@ -219,7 +219,7 @@ let processPushsum ref msg convergenceCount s w convergedNodeList=
                 observerRef <! Converge conmsg
                 broadcastConvergence ref
             let e, f = s/w, ss/ww
-            printfn "Worker %i : %b  %A and %A \n" ref (checkConvergence e f) e f
+            // printfn "Worker %i : %b  %A and %A \n" ref (checkConvergence e f) e f
             (cc, ss / 2.0, ww / 2.0, convergedNodeList)
         | Update (ref) ->  convergenceCount,s,w,ref :: convergedNodeList
         | _ -> failwith "Worker received unsupported message"

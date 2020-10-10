@@ -1,0 +1,46 @@
+
+
+Pushum 
+
+Nodes 1000
+line : 
+Real: 00:00:00.000, CPU: 00:00:00.000, GC gen0: 0, gen1: 0, gen2: 0
+Input values s = 366.000000 w = 1.000000 
+Worker 2 has converged
+pushsum algorithm has converged
+Real: 00:00:14.126, CPU: 00:00:36.468, GC gen0: 3675, gen1: 3, gen2: 0
+
+
+full :
+Real: 00:00:00.000, CPU: 00:00:00.000, GC gen0: 0, gen1: 0, gen2: 0
+Input values s = 735.000000 w = 1.000000 
+Worker 981 has converged
+pushsum algorithm has converged
+Real: 00:00:05.347, CPU: 00:00:11.828, GC gen0: 1138, gen1: 3, gen2: 0
+Press any key to continue . . . 
+
+Real: 00:00:00.000, CPU: 00:00:00.000, GC gen0: 0, gen1: 0, gen2: 0
+Input values s = 268.000000 w = 1.000000 
+Worker 997 has converged
+pushsum algorithm has converged
+Real: 00:05:18.891, CPU: 00:13:10.234, GC gen0: 81502, gen1: 5087, gen2: 4
+Press any key to continue . . . 
+
+
+
+2d :
+Real: 00:00:00.000, CPU: 00:00:00.015, GC gen0: 0, gen1: 0, gen2: 0
+Input values s = 947.000000 w = 1.000000 
+Worker 1023 has converged
+pushsum algorithm has converged
+Real: 00:05:11.458, CPU: 00:13:19.468, GC gen0: 82428, gen1: 7983, gen2: 4
+Press any key to continue . . . 
+
+
+imp2d :
+Real: 00:00:00.000, CPU: 00:00:00.000, GC gen0: 0, gen1: 0, gen2: 0
+Input values s = 468.000000 w = 1.000000 
+Worker 327 has converged
+pushsum algorithm has converged
+Real: 00:00:14.935, CPU: 00:00:34.421, GC gen0: 3185, gen1: 221, gen2: 0
+Press any key to continue . . . 
