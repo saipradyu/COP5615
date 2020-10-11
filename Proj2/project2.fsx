@@ -89,9 +89,9 @@ let buildTopology n s =
 // let gossipcount = 10
 
 
-let topology = "line"
+let topology = "imp2d"
 let algorithm = "gossip"
-let nodes = 10
+let nodes = 1000
 let topologyMap = buildTopology nodes topology
 let gossipcount = if topology = "imp2d" then nodes else 10
 let intialMessage = 
@@ -160,7 +160,6 @@ let processGossip msg ref count dlist =
             if count + 1 = gossipcount then
                 let conmsg =
                     "Worker " + string ref + " has converged"
-
                 observerRef <! Converge conmsg
                 broadcastConvergence ref
             count + 1, dlist

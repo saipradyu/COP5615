@@ -1,0 +1,17 @@
+Gossip 
+nodes = 1000
+full<2d<imp2d<line
+
+line :
+Real: 00:01:11.748, CPU: 00:04:14.234, GC gen0: 30348, gen1: 1075, gen2: 15
+
+
+full:
+Real: 00:00:21.876, CPU: 00:01:16.015, GC gen0: 7309, gen1: 947, gen2: 7
+
+
+2d:
+Real: 00:01:02.225, CPU: 00:03:39.625, GC gen0: 27866, gen1: 1084, gen2: 16
+
+
+imp2d:

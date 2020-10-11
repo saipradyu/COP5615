@@ -50,7 +50,6 @@ let buildTopology n s =
         |> List.map (fun x ->
             let nlist =
                 List.filter (fun y -> (y = x + 1 || y = x - 1)) [ 1 .. n ]
-
             map <- map.Add(x, nlist))
         |> ignore
         map
@@ -79,7 +78,7 @@ let buildTopology n s =
 
 (*******************Initialization************************)
 
-let topology = "2d"
+let topology = "imp2d"
 let algorithm = "pushsum"
 let nodes = roundNodes 1000 topology
 let topologyMap = buildTopology nodes topology
@@ -99,7 +98,6 @@ let getWorkerRef s =
 // Once all the neighbors converge, the node sends messages to iteself -> Can check (hack)
 let getRandomNeighbor x l =
     let nlist = (topologyMap.TryFind x).Value
-
     let rem =
         nlist
         |> List.filter (fun a -> not (l |> List.contains a))
