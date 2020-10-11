@@ -1,4 +1,5 @@
 Gossip 
+
 nodes = 1000
 full<2d<imp2d<line
 
