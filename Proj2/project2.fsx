@@ -140,7 +140,7 @@ let observerBehavior count (inbox: Actor<Message>) =
             | SumConverge (s) ->
                 if count = 0 then
                     sw.Stop()
-                    printfn "Push Sum has converged with %A and %A" (s * float nodes) sw.ElapsedMilliseconds
+                    printfn "Push Sum has converged in %A" sw.ElapsedMilliseconds
                     flag <- false
             | _ -> failwith "Observer received unsupported message"
 
