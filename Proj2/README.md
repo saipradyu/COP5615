@@ -3,7 +3,7 @@ Sai Pradyumna Reddy Chegireddy (UFID: 3463-1711)
 Sri Greeshma Avadhootha (UFID: 1613-6609)
 
 # Instructions
-The main source code is in **Proj2/**:
+The main source code is in **Proj2**:
 * project2.fsx : This file defines main routines and network topology
 
 

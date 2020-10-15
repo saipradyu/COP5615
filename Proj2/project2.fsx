@@ -14,6 +14,8 @@ type Message =
     | Converge of string
     | Gossip of string
     | Update of int
+    | PushSum of float * float
+    | SumConverge of float
 
 let roundNodes n s =
     match s with
@@ -35,7 +37,7 @@ let gridNeighbors x n =
         then (y = x + r || y = x + 1 || y = x - r)
         else (y = x + r || y = x - 1 || y = x + 1 || y = x - r))
 
-let buildTopology n s =
+let buildTopology n s a =
     let mutable map = Map.empty
     match s with
     | "full" ->
@@ -50,8 +52,17 @@ let buildTopology n s =
         |> List.map (fun x ->
             let nlist =
                 List.filter (fun y -> (y = x + 1 || y = x - 1)) [ 1 .. n ]
-
-            map <- map.Add(x, nlist))
+            if a <> "gossip" then
+                if x = 1 then
+                    let mlist = n::nlist
+                    map <- map.Add(x, mlist)
+                elif x = n then
+                    let mlist = 1::nlist
+                    map <- map.Add(x, mlist)
+                else    
+                    map <- map.Add(x, nlist)
+            else      
+                map <- map.Add(x, nlist))
         |> ignore
         map
     | "2d" ->
@@ -85,14 +96,14 @@ let args = fsi.CommandLineArgs |> Array.tail
 let topology = args.[1]
 let algorithm = args.[2]
 let nodes = roundNodes (args.[0] |> int) topology
-let topologyMap = buildTopology nodes topology
+let topologyMap = buildTopology nodes topology algorithm
 let gossipcount = 60
 
 let getWorkerRef s =
     let actorPath = @"akka://FSharp/user/worker" + string s
     select actorPath system
 
-let toList s = Set.fold (fun l m -> m::l) [] s
+let toList s = Set.fold (fun l m -> m :: l) [] s
 
 let getRandomNeighbor x l =
     let nlist = (topologyMap.TryFind x).Value
@@ -100,13 +111,15 @@ let getRandomNeighbor x l =
 
     let rem =
         nlist
-        |> List.filter (fun a -> not (fin |> Set.contains a)) 
+        |> List.filter (fun a -> not (fin |> Set.contains a))
 
     if rem.IsEmpty then
-        let alive = toList((Set.ofSeq { 1 .. nodes }) - fin)
+        let alive =
+            toList ((Set.ofSeq { 1 .. nodes }) - fin)
+
         getWorkerRef (pickRandom alive)
-    else 
-       getWorkerRef (pickRandom rem)
+    else
+        getWorkerRef (pickRandom rem)
 
 let broadcastConvergence x =
     [ 1 .. nodes ]
@@ -123,6 +136,11 @@ let observerBehavior count (inbox: Actor<Message>) =
                 if (count + 1 = nodes) then
                     sw.Stop()
                     printfn "Gossip algorithm has converged in %A" sw.ElapsedMilliseconds
+                    flag <- false
+            | SumConverge (s) ->
+                if count = 0 then
+                    sw.Stop()
+                    printfn "Push Sum has converged in %A" sw.ElapsedMilliseconds
                     flag <- false
             | _ -> failwith "Observer received unsupported message"
 
@@ -171,11 +189,57 @@ let gossipBehavior ref (inbox: Actor<Message>) =
 
     loop 0 List.Empty
 
+let processPushsum ref msg c s w =
+    if c < 3 then
+        let l = List.Empty
+        let self = getWorkerRef ref
+        match msg with
+        | Rumor (_) ->
+            let neighRef = getRandomNeighbor ref l
+            neighRef <! PushSum(s / 2.0, w / 2.0)
+            self <! Gossip
+            c, s / 2.0, w / 2.0
+        | PushSum (a, b) ->
+            let ss = s + a
+            let ww = w + b
+
+            let cc =
+                if abs ((s / w) - (ss / ww)) < 1.0e-10 then c + 1 else 0
+
+            if cc = 3 then
+                observerRef <! SumConverge(ss / ww)
+            else
+                let neighRef = getRandomNeighbor ref l
+                neighRef <! PushSum(ss / 2.0, ww / 2.0)
+            if (s = float ref) then self <! Gossip
+            cc, ss / 2.0, ww / 2.0
+        | Gossip (m) ->
+            let neighRef = getRandomNeighbor ref l
+            neighRef <! PushSum(s / 2.0, w / 2.0)
+            self <! Gossip
+            c, s / 2.0, w / 2.0
+        | _ -> failwith "Worker received unsupported message"
+    else
+        c, s, w
+
+let pushsumBehavior ref (inbox: Actor<Message>) =
+    let rec loop count s w =
+        actor {
+            let! msg = inbox.Receive()
+            let cc, ss, ww = processPushsum ref msg count s w
+            return! loop cc ss ww
+        }
+
+    loop 0 (ref |> double) 1.0
+
+let workerBehavior x =
+    if algorithm = "gossip" then gossipBehavior x else pushsumBehavior x
+
 let workerRef =
     [ 1 .. nodes ]
     |> List.map (fun x ->
         let name = "worker" + string x
-        spawn system name (gossipBehavior x))
+        spawn system name (workerBehavior x))
     |> pickRandom
 
 workerRef <! Rumor "starting a random rumor"
