@@ -90,6 +90,32 @@ let rec remove n lst =
     | h::tl -> h :: (remove n tl)
     | []    -> []
 
+let addOne (one:int) currNodeID RightNode LeftNode maxRows table=
+    let mutable newRightNode = List.empty
+    let mutable newLeftNode = List.empty
+    if(one> currNodeID && (not (List.contains one RightNode))) then
+        if(RightNode.Length <4) then
+            newRightNode <- one::RightNode
+        else
+            if(one < List.max(RightNode)) then
+                let maxRight = List.max (RightNode)
+                newRightNode <- (remove maxRight RightNode)
+                newRightNode <- i::RightNode
+    elif (one < currNodeID && (not (List.contains i LeftNode))) then
+        if(LeftNode.Length < 4) then
+             newLeftNode <- one::LeftNode
+        else
+            if(i> List.min (LeftNode)) then 
+                let minLeft = List.min (LeftNode)
+                newLeftNode <- (remove minLeft LeftNode)
+                newLeftNode <- one::LeftNode
+    let str1 = ConvertNumToBase currNodeID maxRows
+    let str2 = ConvertNumToBase one maxRows
+    let samePre = CountMatches str1 str2
+    let col = (ConvertNumToBase one maxRows).Chars(samePre) |> string |> int 
+    if(table.[samePre,col]=-1) then
+        Array2D.set table samePre col one
+
 let CompleteLeafSet (all: int list) currNodeID i RightNode LeftNode maxRows table=
 //TODO recheck logic for i. Should i be passed as param or not?
     let mutable newRightNode = List.empty
@@ -112,29 +138,96 @@ let CompleteLeafSet (all: int list) currNodeID i RightNode LeftNode maxRows tabl
                     let minLeft = List.min (LeftNode)
                     newLeftNode <- (remove minLeft LeftNode)
                     newLeftNode <- i::LeftNode
-        let samePre = CountMatches(ConvertNumToBase(currNodeID,maxRows),ConvertNumToBase(i,maxRight))
+        else
+        let str1 = ConvertNumToBase currNodeID maxRows
+        let str2 = ConvertNumToBase i maxRows
+        let samePre = CountMatches str1 str2
+        let col = (ConvertNumToBase i maxRows).Chars(samePre) |> string |> int 
+        if(table.[samePre,col]=-1) then
+            Array2D.set table same col one
         //TODO
 
-
-
-
 (*--------------------------Master and Pastry------------------------------------*)
-let pastryProcess msg numNodes numRequests id maxRows count =
+let pastryProcess msg numNodes numRequests senderID id maxRows count =
     let currNodeID = id
     let LeftNode = List.empty
     let RightNode = List.empty
-    // TODO
-    let table = Array2D.init maxRows 4 (fun x y -> (x,y))
+    let mutable numOfBack = 0
+    // TODO See how many columns are needed
+    let table = Array2D.init maxRows 4 (fun x y -> -1)
     let IDSpace = Math.pow(4.0,maxRows) |>int
-    let i = 0
-    for i
+    printfn "%A" table
+    
+    match msg with
+    | AddFirstNode(firstGroup) -> 
+        let newFirstGroup =  (remove currNodeID firstGroup)
+        CompleteLeafSet newFirstGroup
+        for i = 0 to maxRows
+            let col = (ConvertNumToBase currNodeID maxRows).Chars(i) |> string |> int 
+            Array2D.set table i col currNodeID
+            let sender = getWorkerRef senderID
+            sender <! JoinFinish
+            //NOTE sender is implicit in scala.See what to do here
+    | Task (msg, fromID, toID, hops) ->
+        if(msg == "Join") then 
+            let str1 = ConvertNumToBase currNodeID maxRows
+            let str2 = ConvertNumToBase toID maxRows
+            let samePre = CountMatches str1 str2
+            if(hops=-1 && samePre) then 
+                for i= 0 to samePre do
+                    let nextNode = getWorkerRef toID
+                    nextNode <! AddRow i (clone table.[i])
+            let nextNewNode = getWorkerRef toID
+            nextNewNode <! AddRow samePre (clone table.[samePre])
+            //TODO continue from line 134 in github code
+    | AddRow (rowNum, newRow) ->
+        for i=0 to 4 do
+            if table.[rowNum,i] == -1
+                Array2D.set table rowNum i newRow.[i]
+    | AddNodesInNeighborhood (nodesSet) ->
+        CompleteLeafSet nodesSet
+        for i in LeftNode do 
+            numOfBack <- numOfBack+1
+            let nextNode = getWorkerRef i
+            nextNode <! SendAcktoMaster currNodeID
+        for i in RightNode do
+            numOfBack <-numOfBack+1
+            let nextNode = getWorkerRef i
+            nextNode <! SendAcktoMaster currNodeID
+        for i=0 to maxRows do
+            let j = 0
+            for j=0 to 4 do 
+                if (table.[i,j] != -1) then
+                    numOfBack <- numOfBack+1
+                    let nextNodeID = table.[i,j]
+                    let nextNode = getWorkerRef nextNodeID
+                    nextNode <! SendAcktoMaster currNodeID
+        for i=0 to maxRows do
+            let col = (ConvertNumToBase currNodeID maxRows).Chars(i) |> string |> int 
+            Array2D.set table i col currNodeID
+
+    | SendAcktoMaster (newNodeID) ->
+        addOne newNodeID
+        let sender = getWorkerRef senderID
+        sender <! Ack
+    | Ack ->
+        numOfBack<-numOfBack -1
+        if(numOfBack==0) then
+        //TODO parent is master? send ack to master?
+            let masterRef = getMasterRef
+            masterRef <! JoinFinish
+    | StartRouting ->
+    //TODO : Check for shceduler?
+        for i=1 to numRequests
+
+    | message ->
 
 
 let pastryBehaviour numNodes numRequests id maxRows ref (inbox: Actor<Message>) =
     let rec loop count =
         actor {
             let! msg = inbox.Receive()
-            let newCount = pastryProcess msg numNodes numRequests id maxrows count
+            let newCount = pastryProcess msg numNodes numRequests id maxRows count
             return! loop newCount
         }
     loop 0
