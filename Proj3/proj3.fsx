@@ -29,6 +29,13 @@ type Message =
 let numNodes = 10
 let numRequests = 5
 (*--------------------------Utility------------------------------------*)
+//TODO : 
+ (*
+ getIndex
+ getMin
+ getMax
+ write wrpper for ConvertNumToBase
+ *)
 let pickRandom (l: List<_>) =
     let r = System.Random()
     l.[r.Next(l.Length)]
@@ -83,6 +90,7 @@ let CountMatches (str1:string) (str2:string)=
     while count<str1.Length && count<str2.Length && str1.Chars(count) = str2.Chars(count) do
         count <- count+1
     count
+
 
 let rec remove n lst = 
     match lst with
@@ -173,13 +181,115 @@ let pastryProcess msg numNodes numRequests senderID id maxRows count =
             let str1 = ConvertNumToBase currNodeID maxRows
             let str2 = ConvertNumToBase toID maxRows
             let samePre = CountMatches str1 str2
-            if(hops=-1 && samePre) then 
+            if(hops=-1 && samePre>0) then 
                 for i= 0 to samePre do
                     let nextNode = getWorkerRef toID
                     nextNode <! AddRow i (clone table.[i])
             let nextNewNode = getWorkerRef toID
             nextNewNode <! AddRow samePre (clone table.[samePre])
-            //TODO continue from line 134 in github code
+            if((LeftNode.Length >0 && toID >=List.min (LeftNode) && toID<=currNodeID) || 
+            (RightNode.Length>0 && toID<=List.max (RightNode) && toID>=currNodeID)) then
+                let diff = IDSpace+10
+                let nearest = -1
+                if toID<currNodeID then
+                    for i in LeftNode do
+                        if abs (toID - i) < diff then
+                            nearest = i
+                            diff = abs (toID - i)
+                else 
+                    for i in RightNode do
+                        if abs(toID - i) < diff then
+                            nearest = i
+                            diff abs(toID-i)
+                if (abs(toID-currNodeID)>diff) then
+                    let nextNode = getWorkerRef nearest
+                    nextNode<!Task msg fromID toID hops+1
+                else
+                    let nodesSet = List.empty
+                    //TODO Dbt? nodesSet += currNodeID ++= LeftNode ++= RightNode What does it do? append all together?
+                    let nextNode = getWorkerRef toID
+                    nextNode<! AddNodesInNeighborhood nodesSet
+            elif (LeftNode.Length<4 && LeftNode.Length>0 && toID<List.min (LeftNode)) then
+                let minLeft = List.min (LeftNode)
+                let nextNode = getWorkerRef minLeft
+                nextNode<! Task msg fromID toID hops+1
+            elif (RightNode.Length<4 && RightNode.Length>0 && toID>List.max (RightNode)) then
+                let maxRight = List.max (RightNode)
+                let nextNode = getWorkerRef maxRight
+                nextNode<! Task msg fromID toID hops+1
+            elif ((LeftNode.Length == 0 && toID<currNodeID)||(RightNode.Length ==0 && toID>currNodeID)) then
+                let nodesSet = List.empty
+                // //TODO Dbt? nodesSet += currNodeID ++= LeftNode ++= RightNode What does it do? append all together?
+                let nextNode = getWorkerRef toID
+                nextNode<! AddNodesInNeighborhood nodesSet
+            elif table.[samePre, (ConvertNumToBase currNodeID maxRows).Chars(samePre) |> string |> int ] != -1 then
+                let col = (ConvertNumToBase currNodeID maxRows).Chars(samePre) |> string |> int 
+                let nextNodeID = table.[samePre,col]
+                let nextNode = getWorkerRef nextNodeID
+                nextNode <! Task msg fromID toID hops+1
+            elif toID> currNodeID then
+                let maxRight = List.max (RightNode)
+                let nextNode = getWorkerRef maxRight
+                nextNode<! Task msg fromID toID hops+1
+                // TODO Parent node?
+                let masterRef = getMasterRef
+                masterRef<!NodeNotFound
+            elif toID<currNodeID then
+                let minLeft = List.min (LeftNode)
+                let nextNode = getWorkerRef minLeft
+                nextNode<! Task msg fromID toID hops+1
+                let masterRef = getMasterRef
+                masterRef <! NodeNotFound
+            else
+                printfn "Impossible"
+        elif msg =="Route" then
+            if currNodeID == toID then
+                let masterRef = getMasterRef
+                masterRef<!RouteFinish fromID toID hops+1
+            else
+                let str1 = ConvertNumToBase currNodeID maxRows
+                let str2 = ConvertNumToBase toID maxRows
+                let samePre = CountMatches str1 str2
+                let col = (ConvertNumToBase currNodeID maxRows).Chars(samePre) |> string |> int 
+                if((LeftNode.Length >0 && toID>=List.min (LeftNode) && toID<currNodeID)||
+                (RightNode.Length>0 && toID<=List.max (RightNode) && toID>currNodeID)) then
+                    let diff = IDSpace +10
+                    let nearest = -1
+                    if (toID<currNodeID) then
+                        for i in LeftNode do
+                            if (abs(toID-i) <diff) then
+                                nearest = i
+                                diff = abs(toID-i)
+                    else
+                        for i in RightNode do
+                            if(abs(toID-i)<diff) then
+                                nearest = i
+                                diff = abs(toID-i)
+                    if(abs(toID - currNodeID)>diff) then
+                        let nextNode = getWorkerRef nearest
+                        nextNode<! Task msg fromID toID hops+1
+                    else
+                        getMasterRef<! RouteFinish fromID toID hops+1
+                elif (LeftNode.Length<4 && LeftNode.Length > 0 && toID<List.min (LeftNode)) then
+                    let minLeft = List.min (LeftNode)
+                    let nextNode = getWorkerRef minLeft
+                    nextNode <! Task msg fromID toID hops+1
+                elif (RightNode.Length <4 && RightNode.Length>0 && toID>List.max (RightNode)) then
+                    let maxRight = List.max (RightNode)
+                    let nextNode = getWorkerRef maxRight
+                    nextNode<! Task msg fromID toID hops+1
+                elif ((LeftNode.Length ==0 && toID <currNodeID)||(RightNode.length == 0 && toID > currNodeID)) then
+                    getMasterRef<! RouteFinish fromID toID hops+1
+                elif (table.[samePre,col]!= -1) then
+                    let nextNode = getWorkerRef table.[samePre,col]
+                    nextNode<! Task msg fromID toID hops+1
+                elif toID >currNodeID then
+                    let maxRight = List.max (RightNode)
+                    let nextNode = getWorkerRef maxRight
+                    nextNode<!Task msg fromID toID hops+1
+                    getMasterRef<!RouteToNodeNotFound
+                else 
+                    printfn "Impossible!"
     | AddRow (rowNum, newRow) ->
         for i=0 to 4 do
             if table.[rowNum,i] == -1
@@ -290,7 +400,7 @@ let masterProcess msg numNodes numRequests count =
             printfn "Total number of hops : %i " numHops
             printfn "Average number of hops per route : %f" numHops |> double / numRouted |>double
             flag = false
-    | RoutetoNodeNotFound ->
+    | RouteToNodeNotFound ->
         numofRouteNotFound <- numofRouteNotFound + 1
            
     count+1
