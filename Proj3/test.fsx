@@ -44,6 +44,12 @@ let rec remove n lst =
     | h::tl -> h :: (remove n tl)
     | []    -> []
 
+let CountMatches (str1:string) (str2:string)= 
+    let mutable count = 0;
+    while count<str1.Length && count<str2.Length && str1.Chars(count) = str2.Chars(count) do
+        count <- count+1
+    count
+
 let base10tobase4 (base10 : int) =
     let rec helper (int_, base4string) =
         if int_ = 0 then
@@ -70,8 +76,41 @@ let ConvertNumToBase raw length =
     
 ConvertNumToBase 10 10
 
-let CompleteLeafSet (all: int list) currNodeID i RightNode LeftNode maxRows table =
-//TODO recheck logic for i. Should i be passed as param or not?
+//TODO referenec 2d array type: https://stackoverflow.com/questions/2909310/f-multidimensional-array-types
+let CompleteLeafSet (all: int list) currNodeID (RightNode:int list) (LeftNode:int list) maxRows (table:int[,]) =
+    //TODO recheck logic for i. Should i be passed as param or not?
+    let mutable (newRightNode:int list)= List.empty
+    let mutable (newLeftNode:int list) = List.empty
+    for i in all do
+        if (i>currNodeID && (not(List.contains i RightNode))) then
+            if(RightNode.Length<4) then
+                newRightNode <- i::RightNode
+            else
+                if(i<List.max(RightNode)) then
+                    let maxRight = List.max(RightNode)
+                    newRightNode <- (remove maxRight RightNode)
+                    newRightNode <- i::RightNode
+        elif (i<currNodeID && (not(List.contains i LeftNode))) then
+            if(LeftNode.Length < 4) then
+                newLeftNode<- i::LeftNode
+            else
+                if(i>List.min(LeftNode)) then
+                    let minLeft = List.min(LeftNode)
+                    newLeftNode <- (remove minLeft LeftNode)
+                    newLeftNode <- i::LeftNode
+        let str1 = ConvertNumToBase currNodeID maxRows
+        let str2 = ConvertNumToBase i maxRows
+        let samePre = (CountMatches str1 str2)
+        let col = (ConvertNumToBase i maxRows).Chars(samePre)|>string|>int
+        if (table.[samePre, col]=(-1)) then
+             Array2D.set table col i
+             ignore()
+            //  printfn "Updating leafset"
+        // else
+        //     printfn "Error in leafset"
+    (newLeftNode,newRightNode,table)
+
+
 
 
 (***********************Master and Pastry Logic***********************)
@@ -85,17 +124,24 @@ let pastryProcess msg numNodes numRequests senderID id maxRows count =
     let IDSpace = Math.Pow(4.0,maxRows|>double) |>int
     printfn "%A" table
     match msg with
-    | AddFirstNode(firstGroup) -> 
+    | AddFirstNode (firstGroup) -> 
         let newFirstGroup =  (remove currNodeID firstGroup)
-        // CompleteLeafSet newFirstGroup
-        for i = 0 to maxRows do
+        CompleteLeafSet newFirstGroup
+        for i=0 to maxRows do
+            let col = (ConvertNumToBase currNodeID maxRows).Chars(i) |> string |> int 
+            Array2D.set table i col currNodeID
+            let sender = getWorkerRef senderID
+            sender <! JoinFinish
+        // for i = 0 to maxRows do
             // let col = ((ConvertNumToBase currNodeID maxRows).Chars(i)) |> string |> int 
             // Array2D.set table i col currNodeID
             // let sender = getWorkerRef senderID
             // sender <! JoinFinish
             //NOTE sender is implicit in scala.See what to do here
-    count+1
-let pastryBehaviour (inbox: Actor<Message>) =
+    | _ -> 
+        count+1
+    
+let pastryBehaviour numNodes numRequests id maxRows ref (inbox: Actor<Message>) =
     let rec loop count =
         actor {
             let! msg = inbox.Receive()
@@ -103,6 +149,7 @@ let pastryBehaviour (inbox: Actor<Message>) =
             return! loop newCount
         }
     loop 0
+
 let masterProcess msg numNodes numRequests count =
     let maxRows = (Math.Ceiling(Math.Log(numNodes |> double)/Math.Log(4.0)))|> int
     let maxNodes = Math.Pow(4.0,maxRows|>double)|> int
@@ -130,7 +177,8 @@ let masterProcess msg numNodes numRequests count =
         let ref = Nodelist.Item(0)
         // printfn "start node %i" ref 
         let firstNode = getWorkerRef ref
-        //TODO firstNode <! AddFirstNode
+        //TODO 
+        firstNode <! AddFirstNode (clone GrpOne)
         count
 
 let masterBehavior numNodes numRequests (inbox: Actor<Message>) =
