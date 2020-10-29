@@ -16,6 +16,7 @@ type Message =
     | JoinFinish of string
     | NodeNotFound of string
     | RouteToNodeNotFound of string
+    | AddFirstNode of int List
 
 let numNodes = 10
 let numRequests = 5
@@ -71,13 +72,13 @@ let ConvertNumToBase raw length =
         while(j<diff) do
             str <- "0" + str
             j <- j+1
-    printfn "%s" str
+    printfn "convert %i base 4 %s" raw str
     str
     
 ConvertNumToBase 10 10
 
 //TODO referenec 2d array type: https://stackoverflow.com/questions/2909310/f-multidimensional-array-types
-let CompleteLeafSet (all: int list) currNodeID (RightNode:int list) (LeftNode:int list) maxRows (table:int[,]) =
+let CompleteLeafSet (all: int list) currNodeID  (LeftNode:int list) (RightNode:int list) maxRows (table:int[,]) =
     //TODO recheck logic for i. Should i be passed as param or not?
     let mutable (newRightNode:int list)= List.empty
     let mutable (newLeftNode:int list) = List.empty
@@ -103,18 +104,15 @@ let CompleteLeafSet (all: int list) currNodeID (RightNode:int list) (LeftNode:in
         let samePre = (CountMatches str1 str2)
         let col = (ConvertNumToBase i maxRows).Chars(samePre)|>string|>int
         if (table.[samePre, col]=(-1)) then
-             Array2D.set table col i
+             Array2D.set table samePre col i
              ignore()
             //  printfn "Updating leafset"
         // else
         //     printfn "Error in leafset"
     (newLeftNode,newRightNode,table)
 
-
-
-
 (***********************Master and Pastry Logic***********************)
-let pastryProcess msg numNodes numRequests senderID id maxRows count =
+let pastryProcess (msg:Message) numNodes numRequests id maxRows count =
     let currNodeID = id
     let LeftNode = List.empty
     let RightNode = List.empty
@@ -122,25 +120,19 @@ let pastryProcess msg numNodes numRequests senderID id maxRows count =
     // TODO See how many columns are needed
     let table = Array2D.init maxRows 4 (fun x y -> -1)
     let IDSpace = Math.Pow(4.0,maxRows|>double) |>int
-    printfn "%A" table
+    printfn "currNodeID %i \n table %A \n" currNodeID table
     match msg with
-    | AddFirstNode (firstGroup) -> 
+    | AddFirstNode (firstGroup) ->
         let newFirstGroup =  (remove currNodeID firstGroup)
-        CompleteLeafSet newFirstGroup
+        let newLeftNode, newRightNode, newTable = CompleteLeafSet newFirstGroup currNodeID LeftNode RightNode maxRows table
         for i=0 to maxRows do
             let col = (ConvertNumToBase currNodeID maxRows).Chars(i) |> string |> int 
-            Array2D.set table i col currNodeID
-            let sender = getWorkerRef senderID
+            Array2D.set newTable i col currNodeID
+            // TODO recheck who the sender is. Is it the master node always?
+            let sender = getMasterRef
             sender <! JoinFinish
-        // for i = 0 to maxRows do
-            // let col = ((ConvertNumToBase currNodeID maxRows).Chars(i)) |> string |> int 
-            // Array2D.set table i col currNodeID
-            // let sender = getWorkerRef senderID
-            // sender <! JoinFinish
             //NOTE sender is implicit in scala.See what to do here
-    | _ -> 
-        count+1
-    
+    count+1
 let pastryBehaviour numNodes numRequests id maxRows ref (inbox: Actor<Message>) =
     let rec loop count =
         actor {
@@ -150,7 +142,7 @@ let pastryBehaviour numNodes numRequests id maxRows ref (inbox: Actor<Message>) 
         }
     loop 0
 
-let masterProcess msg numNodes numRequests count =
+let masterProcess msg numNodes numRequests (count:int) =
     let maxRows = (Math.Ceiling(Math.Log(numNodes |> double)/Math.Log(4.0)))|> int
     let maxNodes = Math.Pow(4.0,maxRows|>double)|> int
     // printfn "maxRows %i maxNodes %i" maxRows maxNodes
@@ -169,7 +161,7 @@ let masterProcess msg numNodes numRequests count =
                          |> List.map (fun x ->
                                 let name = "pastryNode" + string x
                                  // printfn "%s" name
-                                spawn system name (pastryBehaviour))
+                                spawn system name (pastryBehaviour numNodes numRequests x maxRows x))
                          |> ignore
     match msg with
     | StartTask (s) ->
@@ -180,9 +172,17 @@ let masterProcess msg numNodes numRequests count =
         //TODO 
         firstNode <! AddFirstNode (clone GrpOne)
         count
+    | JoinFinish (s) -> 
+        numJoined <- numJoined + 1
+        if (numJoined=1) then
+            printfn "Node Join started."
+        if(numJoined>0) then
+            if(numJoined=numNodes)then
+                printfn "Start routing"
+        count+1
 
 let masterBehavior numNodes numRequests (inbox: Actor<Message>) =
-    let rec loop count =
+    let rec loop (count:int) =
         actor {
             let! msg = inbox.Receive()
             let newCount = masterProcess msg numNodes numRequests count
