@@ -17,12 +17,13 @@ type Message =
     | NodeNotFound of string
     | RouteToNodeNotFound of string
     | AddFirstNode of int List
+    | Task of string*int*int*int
 
 let numNodes = 10
 let numRequests = 5
 (**************************Utility*********************************)
 let getMasterRef = 
-    let actorPath = @"akka://FSharp/user/masterProcess"
+    let actorPath = @"akka://FSharp/user/master"
     select actorPath system
 
 let getAllWorkerRef = 
@@ -30,7 +31,7 @@ let getAllWorkerRef =
     select actorPath system
 
 let getWorkerRef s =
-    let actorPath = @"akka://FSharp/user/pastryNode" + string s
+    let actorPath = @"akka://FSharp/user/master/" + string s
     select actorPath system
 
 let random = System.Random()
@@ -124,6 +125,7 @@ let pastryProcess (msg:Message) numNodes numRequests id maxRows count =
     match msg with
     | AddFirstNode (firstGroup) ->
         let newFirstGroup =  (remove currNodeID firstGroup)
+        printfn "First group %A \n Group with out node id %i \n new group %A" firstGroup currNodeID newFirstGroup
         let newLeftNode, newRightNode, newTable = CompleteLeafSet newFirstGroup currNodeID LeftNode RightNode maxRows table
         for i=0 to maxRows do
             let col = (ConvertNumToBase currNodeID maxRows).Chars(i) |> string |> int 
@@ -132,6 +134,19 @@ let pastryProcess (msg:Message) numNodes numRequests id maxRows count =
             let sender = getMasterRef
             sender <! JoinFinish
             //NOTE sender is implicit in scala.See what to do here
+    | Task (msg, fromID, toID, hops) ->
+        if(msg.Equals("Join")) then 
+            let str1 = ConvertNumToBase currNodeID maxRows
+            let str2 = ConvertNumToBase toID maxRows
+            let samePre = CountMatches str1 str2
+            if (hops = -1 && samePre > 0) then
+                for i = 0 to samePre-1 do
+                    let nextNode = getWorkerRef toID
+                    nextNode <! AddRow i (clone table.[i])
+            let nextNewNode = getWorkerRef toID
+            nextNewNode <! AddRow samePre (clone table.[samePre])
+
+
     count+1
 let pastryBehaviour numNodes numRequests id maxRows ref (inbox: Actor<Message>) =
     let rec loop count =
@@ -157,29 +172,37 @@ let masterProcess msg numNodes numRequests (count:int) =
     let Nodelist = shuffle [0 .. maxNodes-1]
     // printfn "Nodelist %A" Nodelist
     GrpOne <- Nodelist.Item(0) :: GrpOne
-    let pastryNodelist = Nodelist 
-                         |> List.map (fun x ->
-                                let name = "pastryNode" + string x
-                                 // printfn "%s" name
-                                spawn system name (pastryBehaviour numNodes numRequests x maxRows x))
-                         |> ignore
+    for i=0 to numNodes-1 do
+        let nodeIDInt = (Nodelist.Item(i))
+        let name = string nodeIDInt
+        spawn system name (pastryBehaviour numNodes numRequests nodeIDInt maxRows nodeIDInt)
+    // let pastryNodelist = numNodes 
+    //                      |> List.map (fun x ->
+    //                             let name = "pastryNode" + string x
+    //                              // printfn "%s" name
+    //                             spawn system name (pastryBehaviour numNodes numRequests x maxRows x))
+    //                      |> ignore
     match msg with
     | StartTask (s) ->
         printfn "\n Initial node created.\n Pastry started.\n"
         let ref = Nodelist.Item(0)
-        // printfn "start node %i" ref 
+        printfn "start node %i" ref 
         let firstNode = getWorkerRef ref
         //TODO 
         firstNode <! AddFirstNode (clone GrpOne)
-        count
     | JoinFinish (s) -> 
         numJoined <- numJoined + 1
         if (numJoined=1) then
             printfn "Node Join started."
         if(numJoined>0) then
-            if(numJoined=numNodes)then
+            if(numJoined = numNodes)then
                 printfn "Start routing"
-        count+1
+    | JoinNodesInDT (s) ->
+        let startID = Nodelist.Item(random.Next(0,numJoined))
+        let startWorker = getWorkerRef startID
+        printfn "Start ID %i" startID
+        startWorker <! Task ("Join", startID, Nodelist.Item(numJoined) ,-1)
+
 
 let masterBehavior numNodes numRequests (inbox: Actor<Message>) =
     let rec loop (count:int) =
@@ -190,7 +213,7 @@ let masterBehavior numNodes numRequests (inbox: Actor<Message>) =
         }
     loop 0
 
-let masterNode = spawn system "masterProcess" (masterBehavior numNodes numRequests)
+let masterNode = spawn system "master" (masterBehavior numNodes numRequests)
 
 masterNode <! StartTask "start"
 
