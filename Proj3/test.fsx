@@ -45,6 +45,8 @@ let shuffle elements = elements |> List.sortBy (fun _ -> random.Next())
 
 let clone elements = elements |> List.map (fun element -> element) 
 
+// let cloneArr arr = arr |
+
 let rec remove n lst = 
     match lst with
     | h::tl when h = n -> tl
@@ -117,7 +119,7 @@ let CompleteLeafSet (all: int list) currNodeID  (LeftNode:int list) (RightNode:i
         //     printfn "Error in leafset"
     (newLeftNode,newRightNode,table)
 
-let addOne (one:int) currNodeID  LeftNode RightNode maxRows (table:int[,])=
+let addOne (one:int) currNodeID  (LeftNode:int List) (RightNode:int List) maxRows (table:int[,])=
     let mutable newRightNode = List.empty
     let mutable newLeftNode = List.empty
     if(one> currNodeID && (not (List.contains one RightNode))) then
@@ -174,22 +176,22 @@ let pastryProcess (msg:Message) numNodes numRequests id maxRows count =
             if (hops = -1 && samePre > 0) then
                 for i = 0 to samePre-1 do
                     let nextNode = getWorkerRef toID
-                    nextNode <! AddRow i (clone table.[i])
+                    nextNode <! AddRow (i,(cloneArr table.[i,*]))
             let nextNewNode = getWorkerRef toID
-            nextNewNode <! AddRow samePre (clone table.[samePre])
+            nextNewNode <! AddRow (samePre,(cloneArr table.[samePre,*]))
             if((LeftNode.Length>0 && toID>=List.min(LeftNode)&& toID<=currNodeID)||(RightNode.Length>0 && toID<=List.max(RightNode)&& toID>=currNodeID)) then
-                let diff = IDSpace +10
-                let nearest = -1
+                let mutable diff = IDSpace + 10
+                let mutable nearest = -1
                 if toID<currNodeID then
                     for i in LeftNode do
                         if abs(toID-i)<diff then
-                            nearest = i
-                            diff = abs(toID-i)
+                            nearest <- i
+                            diff <- abs(toID-i)
                 else
                     for i in RightNode do
                         if abs(toID-i)<diff then
-                            nearest = i
-                            diff = abs
+                            nearest <- i
+                            diff <- abs(toID-i)
                 if abs(toID-currNodeID) > diff then
                     let nextNode = getWorkerRef nearest
                     nextNode<! Task (msg,fromID,toID,hops+1)
@@ -207,7 +209,7 @@ let pastryProcess (msg:Message) numNodes numRequests id maxRows count =
                 let maxRight = List.max (RightNode)
                 let nextNode = getWorkerRef maxRight
                 nextNode<! Task (msg, fromID, toID, hops+1)
-            elif ((LeftNode.Length == 0 && toID<currNodeID)||(RightNode.Length ==0 && toID>currNodeID)) then
+            elif ((LeftNode.Length = 0 && toID<currNodeID)||(RightNode.Length = 0 && toID>currNodeID)) then
                 let mutable list = List.append LeftNode RightNode
                 list <- currNodeID::list
                 let nodesSet = list
@@ -243,18 +245,18 @@ let pastryProcess (msg:Message) numNodes numRequests id maxRows count =
                 let str2 = ConvertNumToBase toID maxRows
                 let samePre = CountMatches str1 str2
                 if((LeftNode.Length >0 && toID>=List.min (LeftNode) && toID<currNodeID)||(RightNode.Length>0 && toID<=List.max (RightNode) && toID>currNodeID)) then
-                    let diff = IDSpace +10
-                    let nearest = -1
+                    let mutable diff = IDSpace + 10
+                    let mutable nearest = -1
                     if toID<currNodeID then
                         for i in LeftNode do
                             if (abs(toID-i) < diff) then
-                                nearest = i
-                                diff =abs(toID-i)
+                                nearest <- i
+                                diff <- abs(toID-i)
                     else
                         for i in RightNode do
                             if(abs(toID-i)<diff) then
-                                nearest = i
-                                diff = abs(toID-i)
+                                nearest <- i
+                                diff <- abs(toID-i)
                     if(abs(toID - currNodeID)>diff) then
                         let nextNode = getWorkerRef nearest
                         nextNode<! Task (msg, fromID, toID, hops+1)
@@ -263,12 +265,12 @@ let pastryProcess (msg:Message) numNodes numRequests id maxRows count =
                 elif (LeftNode.Length<4 && LeftNode.Length > 0 && toID<List.min (LeftNode)) then
                     let minLeft = List.min (LeftNode)
                     let nextNode = getWorkerRef minLeft
-                    nextNode <! Task msg fromID toID hops+1
+                    nextNode <! Task (msg,fromID,toID,hops+1)
                 elif (RightNode.Length <4 && RightNode.Length>0 && toID>List.max (RightNode)) then
                     let maxRight = List.max (RightNode)
                     let nextNode = getWorkerRef maxRight
                     nextNode<! Task (msg ,fromID ,toID, hops+1)
-                elif ((LeftNode.Length = 0 && toID <currNodeID)||(RightNode.length = 0 && toID > currNodeID)) then
+                elif ((LeftNode.Length = 0 && toID <currNodeID)||(RightNode.Length = 0 && toID > currNodeID)) then
                     getMasterRef<! RouteFinish (fromID, toID, hops+1)
                 elif (table.[samePre,str2.Chars(samePre) |> string |> int ] <> -1) then
                     let col = str2.Chars(samePre) |> string |> int 
@@ -350,6 +352,7 @@ let masterProcess msg numNodes numRequests (count:int) =
         let nodeIDInt = (Nodelist.Item(i))
         let name = string nodeIDInt
         spawn system name (pastryBehaviour numNodes numRequests nodeIDInt maxRows nodeIDInt)
+        ignore()
     // let pastryNodelist = numNodes 
     //                      |> List.map (fun x ->
     //                             let name = "pastryNode" + string x
@@ -382,8 +385,8 @@ let masterProcess msg numNodes numRequests (count:int) =
          let allWorkers = getAllWorkerRef
          allWorkers <! StartRouting
     | NodeNotFound (s)->
-        numNotInBoth <-numNotInBoth +1
-    | RouteToNodeNotFound(fromID,toID, hops)->
+        numNotInBoth <- numNotInBoth + 1
+    | RouteFinish(fromID,toID, hops)->
         numRouted<-numRouted+1
         numHops<-numHops+hops
         if(numRouted >= (numNotInBoth*numRouted)) then
@@ -395,7 +398,7 @@ let masterProcess msg numNodes numRequests (count:int) =
             flag<-false
     | RouteToNodeNotFound(s)->
         numOfRouteNotFound<-numOfRouteNotFound+1
-
+    (count+1)
 
 let masterBehavior numNodes numRequests (inbox: Actor<Message>) =
     let rec loop (count:int) =
