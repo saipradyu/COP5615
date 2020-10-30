@@ -143,6 +143,7 @@ let addOne (one:int) currNodeID  LeftNode RightNode maxRows (table:int[,])=
     if(table.[samePre,col] = -1) then
         Array2D.set samePre col one
     (newLeftNode,newRightNode,table)
+    
 (***********************Master and Pastry Logic***********************)
 let pastryProcess (msg:Message) numNodes numRequests id maxRows count =
     let currNodeID = id
