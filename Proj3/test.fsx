@@ -117,7 +117,7 @@ let CompleteLeafSet (all: int list) currNodeID  (LeftNode:int list) (RightNode:i
         //     printfn "Error in leafset"
     (newLeftNode,newRightNode,table)
 
-let addOne (one:int) currNodeID  LeftNode RightNode maxRows table=
+let addOne (one:int) currNodeID  LeftNode RightNode maxRows (table:int[,])=
     let mutable newRightNode = List.empty
     let mutable newLeftNode = List.empty
     if(one> currNodeID && (not (List.contains one RightNode))) then
@@ -128,7 +128,7 @@ let addOne (one:int) currNodeID  LeftNode RightNode maxRows table=
                 let maxRight = List.max (RightNode)
                 newRightNode <- (remove maxRight RightNode)
                 newRightNode <- one::RightNode
-    elif (one < currNodeID && (not (List.contains i LeftNode))) then
+    elif (one < currNodeID && (not (List.contains one LeftNode))) then
         if(LeftNode.Length < 4) then
              newLeftNode <- one::LeftNode
         else
@@ -138,12 +138,11 @@ let addOne (one:int) currNodeID  LeftNode RightNode maxRows table=
                 newLeftNode <- one::LeftNode
     let str1 = ConvertNumToBase currNodeID maxRows
     let str2 = ConvertNumToBase one maxRows
-    let samePre = CountMatches str1 str2
+    let samePre = (CountMatches str1 str2) |>int
     let col = str2.Chars(samePre) |> string |> int 
-    if(table.[samePre,col]=-1) then
-        Array2D.set table samePre col one
+    if(table.[samePre,col] = -1) then
+        Array2D.set samePre col one
     (newLeftNode,newRightNode,table)
-
 (***********************Master and Pastry Logic***********************)
 let pastryProcess (msg:Message) numNodes numRequests id maxRows count =
     let currNodeID = id
@@ -289,8 +288,8 @@ let pastryProcess (msg:Message) numNodes numRequests id maxRows count =
                     printfn "Impossible!"
     | AddRow (rowNum,newRow) ->
         for i=0 to 3 do
-            if table.[rowNum,i] = -1
-                Array2D.set table rowNum i newRow.[i]
+            if table.[rowNum,i] = -1 then
+                Array2D.set table rowNum i newRow.[i]
     | AddNodesInNeighborhood (nodesSet) ->
         let newLeftNode, newRightNode, newTable = CompleteLeafSet nodesSet currNodeID LeftNode RightNode maxRows table
         for i in newLeftNode do 
@@ -310,7 +309,7 @@ let pastryProcess (msg:Message) numNodes numRequests id maxRows count =
                     nextNode <! SendAckToMaster currNodeID
         for i=0 to maxRows do
             let col = (ConvertNumToBase currNodeID maxRows).Chars(i) |> string |> int 
-            Array2D.set table i col currNodeID
+            Array2D.set table i col currNodeID
     | SendAckToMaster(newNodeID) ->
         addOne (newNodeID, currNodeID ,LeftNode ,RightNode ,maxRows ,table)
         getMasterRef<!Ack
@@ -319,10 +318,6 @@ let pastryProcess (msg:Message) numNodes numRequests id maxRows count =
         if(numOfBack=0) then
             let masterRef = getMasterRef
             masterRef <! JoinFinish
-    | StartRouting (s) ->
-        for i=1 to numRequests do
-            System.
-
     count+1
 
 
@@ -380,6 +375,25 @@ let masterProcess msg numNodes numRequests (count:int) =
         let startWorker = getWorkerRef startID
         printfn "Start ID %i" startID
         startWorker <! Task ("Join", startID, Nodelist.Item(numJoined) ,-1)
+    | StartRouting(s)->
+         printfn "Node Join Finished.\n"
+         printfn "Routing started."
+         let allWorkers = getAllWorkerRef
+         allWorkers <! StartRouting
+    | NodeNotFound (s)->
+        numNotInBoth <-numNotInBoth +1
+    | RouteToNodeNotFound(fromID,toID, hops)->
+        numRouted<-numRouted+1
+        numHops<-numHops+hops
+        if(numRouted >= (numNotInBoth*numRouted)) then
+            printfn "Routing finished.\n"
+            printfn "Total number of routes:%u " numRouted
+            printfn "Total number of hops:%i " numHops
+            printfn "Routing finished.\n"
+            printfn "Average number of hops per route: %f"  (numHops|>double) / (numRouted|>double)
+            flag<-false
+    | RouteToNodeNotFound(s)->
+        numOfRouteNotFound<-numOfRouteNotFound+1
 
 
 let masterBehavior numNodes numRequests (inbox: Actor<Message>) =
