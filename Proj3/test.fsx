@@ -45,7 +45,7 @@ let shuffle elements = elements |> List.sortBy (fun _ -> random.Next())
 
 let clone elements = elements |> List.map (fun element -> element) 
 
-// let cloneArr arr = arr |
+let cloneArr arr = Array.copy arr 
 
 let rec remove n lst = 
     match lst with
@@ -153,7 +153,7 @@ let pastryProcess (msg:Message) numNodes numRequests id maxRows count =
     let RightNode = List.empty
     let mutable numOfBack = 0
     // TODO See how many columns are needed
-    let table = Array2D.init maxRows 4 (fun x y -> -1)
+    let (table:int[,]) = Array2D.init maxRows 4 (fun x y -> -1)
     let IDSpace = Math.Pow(4.0,maxRows|>double) |>int
     printfn "currNodeID %i \n table %A \n" currNodeID table
     match msg with
@@ -176,7 +176,8 @@ let pastryProcess (msg:Message) numNodes numRequests id maxRows count =
             if (hops = -1 && samePre > 0) then
                 for i = 0 to samePre-1 do
                     let nextNode = getWorkerRef toID
-                    nextNode <! AddRow (i,(cloneArr table.[i,*]))
+                    let currRow = table.[i,*]
+                    nextNode <! AddRow (i,(cloneArr currRow))
             let nextNewNode = getWorkerRef toID
             nextNewNode <! AddRow (samePre,(cloneArr table.[samePre,*]))
             if((LeftNode.Length>0 && toID>=List.min(LeftNode)&& toID<=currNodeID)||(RightNode.Length>0 && toID<=List.max(RightNode)&& toID>=currNodeID)) then
