@@ -36,7 +36,7 @@ let getAllWorkerRef =
     select actorPath system
 
 let getWorkerRef s =
-    let actorPath = @"akka://FSharp/user/master/" + string s
+    let actorPath = @"akka://FSharp/user/" + string s
     select actorPath system
 
 let random = System.Random()
@@ -80,10 +80,10 @@ let ConvertNumToBase raw length =
         while(j<diff) do
             str <- "0" + str
             j <- j+1
-    printfn "convert %i base 4 %s" raw str
+    // printfn "convert %i base 4 %s" raw str
     str
     
-ConvertNumToBase 10 10
+// ConvertNumToBase 10 10
 
 //TODO referenec 2d array type: https://stackoverflow.com/questions/2909310/f-multidimensional-array-types
 let CompleteLeafSet (all: int list) currNodeID  (LeftNode:int list) (RightNode:int list) maxRows (table:int[,]) =
@@ -143,11 +143,12 @@ let addOne (one:int) currNodeID  (LeftNode:int List) (RightNode:int List) maxRow
     let samePre = (CountMatches str1 str2) |>int
     let col = str2.Chars(samePre) |> string |> int 
     if(table.[samePre,col] = -1) then
-        Array2D.set samePre col one
+        printfn "hello t"
+        // Array2D.set samePre col one
     (newLeftNode,newRightNode,table)
     
 (***********************Master and Pastry Logic***********************)
-let pastryProcess (msg:Message) numNodes numRequests id maxRows count =
+let pastryProcess (msg:Message) numNodes numRequests id maxRows count sender self=
     let currNodeID = id
     let LeftNode = List.empty
     let RightNode = List.empty
@@ -161,12 +162,11 @@ let pastryProcess (msg:Message) numNodes numRequests id maxRows count =
         let newFirstGroup =  (remove currNodeID firstGroup)
         printfn "First group %A \n Group with out node id %i \n new group %A" firstGroup currNodeID newFirstGroup
         let newLeftNode, newRightNode, newTable = CompleteLeafSet newFirstGroup currNodeID LeftNode RightNode maxRows table
-        for i=0 to maxRows do
+        for i=0 to maxRows-1 do
             let col = (ConvertNumToBase currNodeID maxRows).Chars(i) |> string |> int 
             Array2D.set newTable i col currNodeID
             // TODO recheck who the sender is. Is it the master node always?
-            let sender = getMasterRef
-            sender <! JoinFinish
+        sender <! JoinFinish
             //NOTE sender is implicit in scala.See what to do here
     | Task (msg, fromID, toID, hops) ->
         if(msg.Equals("Join")) then 
@@ -177,9 +177,10 @@ let pastryProcess (msg:Message) numNodes numRequests id maxRows count =
                 for i = 0 to samePre-1 do
                     let nextNode = getWorkerRef toID
                     let currRow = table.[i,*]
-                    nextNode <! AddRow (i,(cloneArr currRow))
+                    printfn "currRow"
+                    // nextNode <! AddRow (i,(cloneArr currRow))
             let nextNewNode = getWorkerRef toID
-            nextNewNode <! AddRow (samePre,(cloneArr table.[samePre,*]))
+            // nextNewNode <! AddRow (samePre,(cloneArr table.[samePre,*]))
             if((LeftNode.Length>0 && toID>=List.min(LeftNode)&& toID<=currNodeID)||(RightNode.Length>0 && toID<=List.max(RightNode)&& toID>=currNodeID)) then
                 let mutable diff = IDSpace + 10
                 let mutable nearest = -1
@@ -293,7 +294,8 @@ let pastryProcess (msg:Message) numNodes numRequests id maxRows count =
     | AddRow (rowNum,newRow) ->
         for i=0 to 3 do
             if table.[rowNum,i] = -1 then
-                Array2D.set table rowNum i newRow.[i]
+                // Array2D.set table rowNum i newRow.[i]
+                printfn "table add"
     | AddNodesInNeighborhood (nodesSet) ->
         let newLeftNode, newRightNode, newTable = CompleteLeafSet nodesSet currNodeID LeftNode RightNode maxRows table
         for i in newLeftNode do 
@@ -306,7 +308,7 @@ let pastryProcess (msg:Message) numNodes numRequests id maxRows count =
             nextNode <! SendAckToMaster currNodeID
         for i=0 to maxRows-1 do
             for j=0 to 3 do 
-                if (newTable.[i,j] != -1) then
+                if (newTable.[i,j] <> -1) then
                     numOfBack <- numOfBack+1
                     let nextNodeID = newTable.[i,j]
                     let nextNode = getWorkerRef nextNodeID
@@ -315,13 +317,17 @@ let pastryProcess (msg:Message) numNodes numRequests id maxRows count =
             let col = (ConvertNumToBase currNodeID maxRows).Chars(i) |> string |> int 
             Array2D.set table i col currNodeID
     | SendAckToMaster(newNodeID) ->
-        addOne (newNodeID, currNodeID ,LeftNode ,RightNode ,maxRows ,table)
+        // addOne (newNodeID, currNodeID ,LeftNode ,RightNode ,maxRows ,table)
         getMasterRef<!Ack
     | Ack(s) ->
         numOfBack<-numOfBack-1
         if(numOfBack=0) then
             let masterRef = getMasterRef
             masterRef <! JoinFinish
+    | StartRouting (s) ->
+        for i = 1 to numRequests do
+            Async.Sleep(100) |> Async.RunSynchronously
+            self <! Task ("Route",currNodeID,random.Next(0,(IDSpace)),-1)
     count+1
 
 
@@ -329,12 +335,14 @@ let pastryBehaviour numNodes numRequests id maxRows ref (inbox: Actor<Message>) 
     let rec loop count =
         actor {
             let! msg = inbox.Receive()
-            let newCount = pastryProcess msg numNodes numRequests id maxRows count
+            let sender = inbox.Sender()
+            let self = inbox.Self
+            let newCount = pastryProcess msg numNodes numRequests id maxRows count sender self
             return! loop newCount
         }
     loop 0
 
-let masterProcess msg numNodes numRequests (count:int) =
+let masterProcess msg numNodes numRequests (count:int)=
     let maxRows = (Math.Ceiling(Math.Log(numNodes |> double)/Math.Log(4.0)))|> int
     let maxNodes = Math.Pow(4.0,maxRows|>double)|> int
     // printfn "maxRows %i maxNodes %i" maxRows maxNodes
@@ -348,7 +356,9 @@ let masterProcess msg numNodes numRequests (count:int) =
     //TODO : check in scala doing 0 "until" maxNodes ie last node not included
     let Nodelist = shuffle [0 .. maxNodes-1]
     // printfn "Nodelist %A" Nodelist
-    GrpOne <- Nodelist.Item(0) :: GrpOne
+    for i=0 to numNodes-1 do
+        GrpOne <- Nodelist.Item(i)::GrpOne
+    // GrpOne <- Nodelist.Item(0) :: GrpOne
     for i=0 to numNodes-1 do
         let nodeIDInt = (Nodelist.Item(i))
         let name = string nodeIDInt
@@ -395,7 +405,7 @@ let masterProcess msg numNodes numRequests (count:int) =
             printfn "Total number of routes:%u " numRouted
             printfn "Total number of hops:%i " numHops
             printfn "Routing finished.\n"
-            printfn "Average number of hops per route: %f"  (numHops|>double) / (numRouted|>double)
+            // printfn "Average number of hops per route: %f"  (numHops|>double) / (numRouted|>double)
             flag<-false
     | RouteToNodeNotFound(s)->
         numOfRouteNotFound<-numOfRouteNotFound+1
@@ -405,6 +415,7 @@ let masterBehavior numNodes numRequests (inbox: Actor<Message>) =
     let rec loop (count:int) =
         actor {
             let! msg = inbox.Receive()
+           
             let newCount = masterProcess msg numNodes numRequests count
             return! loop newCount
         }
