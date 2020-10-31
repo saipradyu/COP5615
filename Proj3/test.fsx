@@ -332,22 +332,22 @@ let masterBehavior numNodes numRequests (inbox: Actor<Message>) =
     let maxRows = (Math.Ceiling(Math.Log(numNodes |> double)/Math.Log(4.0)))|> int
     let maxNodes = Math.Pow(4.0,maxRows|>double)|> int
     let mutable GrpOne = List.empty
-    let i = -1
+    // let i = -1
     let mutable numHops = 0
     let mutable numJoined = 0
     let mutable numNotInBoth = 0
     let mutable numRouted = 0
-    let mutable numOfRouteNotFound = 0
+    let mutable numRouteNotInBoth = 0
     let mutable set = Set.empty
     let groupOneSize = if numNodes<=1024 then numNodes else 1024
-    let mutable Nodelist = List.empty 
-    while Nodelist.Length<maxNodes do
-        let currID = random.Next(0,maxNodes)
-        if( not(Set.contains currID set)) then
-            Nodelist <- currID::Nodelist
-            set<-Set.add currID set
+    // let mutable Nodelist = List.empty 
+    // while Nodelist.Length<maxNodes do
+    //     let currID = random.Next(0,maxNodes)
+    //     if( not(Set.contains currID set)) then
+    //         Nodelist <- currID::Nodelist
+    //         set<-Set.add currID set
             
-            // let Nodelist = shuffle [0 .. maxNodes-1]
+    let Nodelist = shuffle [0 .. maxNodes-1]
     for i=0 to groupOneSize-1 do
         GrpOne <- Nodelist.Item(i)::GrpOne
             
@@ -408,7 +408,7 @@ let masterBehavior numNodes numRequests (inbox: Actor<Message>) =
                     // printfn "Average number of hops per route: %f"  (numHops|>double) / (numRouted|>double)
                     flag<-false
             | RouteToNodeNotFound->
-                numOfRouteNotFound<-numOfRouteNotFound+1
+                numRouteNotInBoth<-numRouteNotInBoth+1
             return! loop
         }
     loop 
