@@ -23,6 +23,7 @@ type Message =
     | AddNodesInNeighborhood of int List
     | SendAckToMaster of int
     | RouteFinish of int*int*int
+    | StartRoutingWorker
     // | Init of int List
 
 
@@ -94,7 +95,7 @@ let pastryBehaviour numNodes numRequests id maxRows (inbox: Actor<Message>) =
     let mutable RightNode = List.empty
     let mutable numOfBack = 0
     let mutable table = Array2D.create maxRows 4 -1
-    let IDSpace = Math.Pow(4.0,maxRows|>double) |>int
+    let mutable IDSpace = Math.Pow(4.0,maxRows|>double) |>int
     let CompleteLeafSet (all: int list)  =
         // let mutable (newRightNode:int list)= List.empty
         // let mutable (newLeftNode:int list) = List.empty
@@ -145,7 +146,7 @@ let pastryBehaviour numNodes numRequests id maxRows (inbox: Actor<Message>) =
         let str2 = ConvertNumToBase one maxRows
         let samePre = (CountMatches str1 str2) |>int
         let col = str2.Chars(samePre) |> string |> int 
-        if(table.[samePre,col] = -1) then
+        if(table.[samePre,col] = (-1)) then
             table.[samePre, col] <- one
         
     
@@ -171,10 +172,11 @@ let pastryBehaviour numNodes numRequests id maxRows (inbox: Actor<Message>) =
                         for i = 0 to samePre-1 do
                             let nextNode = getWorkerRef toID
                             let mutable currRow = table.[i,*]
-                            printfn "ID %i currRow %A" currNodeID currRow
+                            printfn "Before currID %i  newRow %A" currNodeID currRow
                             nextNode <! AddRow (i,currRow)
                     let nextNewNode = getWorkerRef toID
                     let mutable samePrefixRow = table.[samePre,*]
+                    printfn "Before currID %i  newRow %A" currNodeID samePrefixRow
                     nextNewNode <! AddRow (samePre, samePrefixRow)
                     if((LeftNode.Length>0 && toID>=List.min(LeftNode)&& toID<=currNodeID)||(RightNode.Length>0 && toID<=List.max(RightNode)&& toID>=currNodeID)) then
                         let mutable diff = IDSpace + 10
@@ -286,8 +288,9 @@ let pastryBehaviour numNodes numRequests id maxRows (inbox: Actor<Message>) =
                         else 
                             printfn "Impossible!"
             | AddRow (rowNum,(newRow:int[])) ->
+                printfn "After currID %i  newRow %A" currNodeID newRow
                 for i=0 to 3 do
-                    if table.[rowNum,i] = -1 then
+                    if (table.[rowNum,i] = -1) then
                         table.[rowNum, i] <- newRow.[i]
             | AddNodesInNeighborhood (nodesSet) ->
                 CompleteLeafSet nodesSet
@@ -317,10 +320,11 @@ let pastryBehaviour numNodes numRequests id maxRows (inbox: Actor<Message>) =
                 if(numOfBack=0) then
                     let masterRef = getMasterRef
                     masterRef <! JoinFinish
-            | StartRouting  ->
+            | StartRoutingWorker  ->
                 for i = 1 to numRequests do
                     Async.Sleep(100) |> Async.RunSynchronously
-                    self <! Task ("Route",currNodeID,random.Next(0,(IDSpace)),-1)
+                    //TODO : Check if this works
+                    self <! Task ("Route",currNodeID,System.Random().Next(IDSpace),-1)
                     // let newCount = pastryProcess msg numNodes numRequests id maxRows count sender self
             return! loop 
         }
@@ -363,15 +367,19 @@ let masterBehavior numNodes numRequests (inbox: Actor<Message>) =
             let self = inbox.Self
             match msg with
             | StartTask  ->
-                printfn "\n Initial node created.\n Pastry started.\n"
+                // printfn "\n Initial node created.\n Pastry started.\n"
+                printfn "Joining.\n"
                 for i=0 to groupOneSize-1 do
                     let nodeIDInt = (Nodelist.Item(i))
                     let worker = getWorkerRef nodeIDInt
+                    // let mutable cloneGroupOne = GrpOne
+                    // TODO : check clone ?
                     worker<! AddFirstNode(clone GrpOne)
             | JoinFinish ->
                 numJoined <- numJoined + 1
                 if (numJoined = groupOneSize) then
                     if(numJoined>=numNodes) then
+                    //TODO : Check self?
                         self<! StartRouting
                     else
                         self<! JoinNodesInDT
@@ -381,15 +389,23 @@ let masterBehavior numNodes numRequests (inbox: Actor<Message>) =
                     else
                         self<!JoinNodesInDT   
             | JoinNodesInDT ->
-                let startID = Nodelist.Item(random.Next(0,numJoined))
+                // TODO : https://docs.microsoft.com/en-us/dotnet/api/system.random.next?view=netcore-3.1#System_Random_Next_System_Int32_
+                let startID = Nodelist.Item(random.Next(numJoined))
                 let startWorker = getWorkerRef startID
                 printfn "JoinNodesInDT startID %i" startID
                 startWorker <! Task ("Join", startID, Nodelist.Item(numJoined) ,-1)
             | StartRouting->
-                 printfn "Node Join Finished.\n"
-                 printfn "Routing started."
-                 let allWorkers = getAllWorkerRef
-                 allWorkers <! StartRouting
+                //  printfn "Node Join Finished.\n"
+                //  printfn "Routing started."
+                printfn "Joined" 
+                printfn "Routing"
+                 //TODO : check all workers?
+                for i=0 to numNodes-1 do
+                    let nodeIDInt = (Nodelist.Item(i))
+                    let nextNode = getWorkerRef nodeIDInt
+                    nextNode<!StartRoutingWorker
+                // let allWorkers = getAllWorkerRef
+                // allWorkers <! StartRoutingWorker
             | NodeNotFound ->
                 numNotInBoth <- numNotInBoth + 1
             | RouteFinish(fromID,toID, hops)->
@@ -398,14 +414,15 @@ let masterBehavior numNodes numRequests (inbox: Actor<Message>) =
                 for i = 1 to 10 do 
                     if (numRouted= (numNodes* numRequests * i/10)) then
                         for j=1 to i do
-                            printfn "."
-                        printfn "|"
-                if(numRouted >= (numNotInBoth*numRouted)) then
+                            printf "."
+                        printf "|"
+                if(numRouted >= (numNodes*numRequests)) then
                     printfn "Routing finished.\n"
                     printfn "Total number of routes:%u " numRouted
                     printfn "Total number of hops:%i " numHops
                     printfn "Routing finished.\n"
-                    // printfn "Average number of hops per route: %f"  (numHops|>double) / (numRouted|>double)
+                    let avgHops= (numHops|>double)/(numRouted|>double)
+                    printfn "Average number of hops per route: %f"  avgHops
                     flag<-false
             | RouteToNodeNotFound->
                 numRouteNotInBoth<-numRouteNotInBoth+1
