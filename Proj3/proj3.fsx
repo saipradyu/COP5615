@@ -27,8 +27,8 @@ type Message =
     // | Init of int List
 
 
-let numNodes = 10
-let numRequests = 5
+let numNodes = 300
+let numRequests = 120
 (**************************Utility*********************************)
 let getMasterRef = 
     let actorPath = @"akka://FSharp/user/master"
