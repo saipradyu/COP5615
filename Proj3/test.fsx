@@ -27,7 +27,7 @@ type Message =
     // | Init of int List
 
 
-let numNodes = 10
+let numNodes = 1000
 let numRequests = 5
 (**************************Utility*********************************)
 let getMasterRef = 
