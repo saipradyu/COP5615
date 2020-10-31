@@ -95,25 +95,25 @@ let pastryBehaviour numNodes numRequests id maxRows (inbox: Actor<Message>) =
     let mutable table = Array2D.create maxRows 4 -1
     let IDSpace = Math.Pow(4.0,maxRows|>double) |>int
     let CompleteLeafSet (all: int list)  =
-        let mutable (newRightNode:int list)= List.empty
-        let mutable (newLeftNode:int list) = List.empty
+        // let mutable (newRightNode:int list)= List.empty
+        // let mutable (newLeftNode:int list) = List.empty
         for i in all do
             if (i>currNodeID && (not(List.contains i RightNode))) then
                 if(RightNode.Length<4) then
-                    newRightNode <- i::RightNode
+                    RightNode <- i::RightNode
                 else
                     if(i<List.max(RightNode)) then
                         let maxRight = List.max(RightNode)
-                        newRightNode <- (remove maxRight RightNode)
-                        newRightNode <- i::RightNode
+                        RightNode <- (remove maxRight RightNode)
+                        RightNode <- i::RightNode
             elif (i<currNodeID && (not(List.contains i LeftNode))) then
                 if(LeftNode.Length < 4) then
-                    newLeftNode<- i::LeftNode
+                    LeftNode<- i::LeftNode
                 else
                     if(i>List.min(LeftNode)) then
                         let minLeft = List.min(LeftNode)
-                        newLeftNode <- (remove minLeft LeftNode)
-                        newLeftNode <- i::LeftNode
+                        LeftNode <- (remove minLeft LeftNode)
+                        LeftNode <- i::LeftNode
             let str1 = ConvertNumToBase currNodeID maxRows
             let str2 = ConvertNumToBase i maxRows
             let samePre = (CountMatches str1 str2)
@@ -122,24 +122,24 @@ let pastryBehaviour numNodes numRequests id maxRows (inbox: Actor<Message>) =
                 table.[samePre, col] <- i
 
     let addOne (one:int) =
-        let mutable newRightNode = List.empty
-        let mutable newLeftNode = List.empty
+        // let mutable newRightNode = List.empty
+        // let mutable newLeftNode = List.empty
         if(one> currNodeID && (not (List.contains one RightNode))) then
             if(RightNode.Length <4) then
-                newRightNode <- one::RightNode
+                RightNode <- one::RightNode
             else
                 if(one < List.max(RightNode)) then
                     let maxRight = List.max (RightNode)
-                    newRightNode <- (remove maxRight RightNode)
-                    newRightNode <- one::RightNode
+                    RightNode <- (remove maxRight RightNode)
+                    RightNode <- one::RightNode
         elif (one < currNodeID && (not (List.contains one LeftNode))) then
             if(LeftNode.Length < 4) then
-                 newLeftNode <- one::LeftNode
+                 LeftNode <- one::LeftNode
             else
                 if(one> List.min (LeftNode)) then 
                     let minLeft = List.min (LeftNode)
-                    newLeftNode <- (remove minLeft LeftNode)
-                    newLeftNode <- one::LeftNode
+                    LeftNode <- (remove minLeft LeftNode)
+                    LeftNode <- one::LeftNode
         let str1 = ConvertNumToBase currNodeID maxRows
         let str2 = ConvertNumToBase one maxRows
         let samePre = (CountMatches str1 str2) |>int
@@ -153,8 +153,6 @@ let pastryBehaviour numNodes numRequests id maxRows (inbox: Actor<Message>) =
             let! msg = inbox.Receive()
             let sender = inbox.Sender()
             let self = inbox.Self
-            
-            
             match msg with
             | AddFirstNode (firstGroup) ->
                 let newFirstGroup =  (remove currNodeID firstGroup)
@@ -323,7 +321,6 @@ let pastryBehaviour numNodes numRequests id maxRows (inbox: Actor<Message>) =
                     Async.Sleep(100) |> Async.RunSynchronously
                     self <! Task ("Route",currNodeID,random.Next(0,(IDSpace)),-1)
                     // let newCount = pastryProcess msg numNodes numRequests id maxRows count sender self
-                    
             return! loop 
         }
     loop 
@@ -394,8 +391,8 @@ let masterBehavior numNodes numRequests (inbox: Actor<Message>) =
             | NodeNotFound ->
                 numNotInBoth <- numNotInBoth + 1
             | RouteFinish(fromID,toID, hops)->
-                numRouted<-numRouted+1
-                numHops<-numHops+hops
+                numRouted <- numRouted+1
+                numHops <- numHops+hops
                 for i = 1 to 10 do 
                     if (numRouted= (numNodes* numRequests * i/10)) then
                         for j=1 to i do
