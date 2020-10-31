@@ -88,70 +88,72 @@ let ConvertNumToBase raw length =
 (***********************Master and Pastry Logic***********************)
 
 let pastryBehaviour numNodes numRequests id maxRows (inbox: Actor<Message>) =
+    let currNodeID = id
+    let mutable LeftNode = List.empty
+    let mutable RightNode = List.empty
+    let mutable numOfBack = 0
+    let mutable table = Array2D.create maxRows 4 -1
+    let IDSpace = Math.Pow(4.0,maxRows|>double) |>int
+    let CompleteLeafSet (all: int list)  =
+        let mutable (newRightNode:int list)= List.empty
+        let mutable (newLeftNode:int list) = List.empty
+        for i in all do
+            if (i>currNodeID && (not(List.contains i RightNode))) then
+                if(RightNode.Length<4) then
+                    newRightNode <- i::RightNode
+                else
+                    if(i<List.max(RightNode)) then
+                        let maxRight = List.max(RightNode)
+                        newRightNode <- (remove maxRight RightNode)
+                        newRightNode <- i::RightNode
+            elif (i<currNodeID && (not(List.contains i LeftNode))) then
+                if(LeftNode.Length < 4) then
+                    newLeftNode<- i::LeftNode
+                else
+                    if(i>List.min(LeftNode)) then
+                        let minLeft = List.min(LeftNode)
+                        newLeftNode <- (remove minLeft LeftNode)
+                        newLeftNode <- i::LeftNode
+            let str1 = ConvertNumToBase currNodeID maxRows
+            let str2 = ConvertNumToBase i maxRows
+            let samePre = (CountMatches str1 str2)
+            let col = (ConvertNumToBase i maxRows).Chars(samePre)|>string|>int
+            if (table.[samePre,col]= (-1)) then
+                table.[samePre, col] <- i
+
+    let addOne (one:int) =
+        let mutable newRightNode = List.empty
+        let mutable newLeftNode = List.empty
+        if(one> currNodeID && (not (List.contains one RightNode))) then
+            if(RightNode.Length <4) then
+                newRightNode <- one::RightNode
+            else
+                if(one < List.max(RightNode)) then
+                    let maxRight = List.max (RightNode)
+                    newRightNode <- (remove maxRight RightNode)
+                    newRightNode <- one::RightNode
+        elif (one < currNodeID && (not (List.contains one LeftNode))) then
+            if(LeftNode.Length < 4) then
+                 newLeftNode <- one::LeftNode
+            else
+                if(one> List.min (LeftNode)) then 
+                    let minLeft = List.min (LeftNode)
+                    newLeftNode <- (remove minLeft LeftNode)
+                    newLeftNode <- one::LeftNode
+        let str1 = ConvertNumToBase currNodeID maxRows
+        let str2 = ConvertNumToBase one maxRows
+        let samePre = (CountMatches str1 str2) |>int
+        let col = str2.Chars(samePre) |> string |> int 
+        if(table.[samePre,col] = -1) then
+            table.[samePre, col] <- one
+        
+    
     let rec loop =
         actor {
             let! msg = inbox.Receive()
             let sender = inbox.Sender()
             let self = inbox.Self
-            let currNodeID = id
-            let mutable LeftNode = List.empty
-            let mutable RightNode = List.empty
-            let mutable numOfBack = 0
-            let mutable table = Array2D.create maxRows 4 -1
-            let IDSpace = Math.Pow(4.0,maxRows|>double) |>int
-            let CompleteLeafSet (all: int list)  =
-                let mutable (newRightNode:int list)= List.empty
-                let mutable (newLeftNode:int list) = List.empty
-                for i in all do
-                    if (i>currNodeID && (not(List.contains i RightNode))) then
-                        if(RightNode.Length<4) then
-                            newRightNode <- i::RightNode
-                        else
-                            if(i<List.max(RightNode)) then
-                                let maxRight = List.max(RightNode)
-                                newRightNode <- (remove maxRight RightNode)
-                                newRightNode <- i::RightNode
-                    elif (i<currNodeID && (not(List.contains i LeftNode))) then
-                        if(LeftNode.Length < 4) then
-                            newLeftNode<- i::LeftNode
-                        else
-                            if(i>List.min(LeftNode)) then
-                                let minLeft = List.min(LeftNode)
-                                newLeftNode <- (remove minLeft LeftNode)
-                                newLeftNode <- i::LeftNode
-                    let str1 = ConvertNumToBase currNodeID maxRows
-                    let str2 = ConvertNumToBase i maxRows
-                    let samePre = (CountMatches str1 str2)
-                    let col = (ConvertNumToBase i maxRows).Chars(samePre)|>string|>int
-                    if (table.[samePre,col]= (-1)) then
-                        table.[samePre, col] <- i
-
-            let addOne (one:int) =
-                let mutable newRightNode = List.empty
-                let mutable newLeftNode = List.empty
-                if(one> currNodeID && (not (List.contains one RightNode))) then
-                    if(RightNode.Length <4) then
-                        newRightNode <- one::RightNode
-                    else
-                        if(one < List.max(RightNode)) then
-                            let maxRight = List.max (RightNode)
-                            newRightNode <- (remove maxRight RightNode)
-                            newRightNode <- one::RightNode
-                elif (one < currNodeID && (not (List.contains one LeftNode))) then
-                    if(LeftNode.Length < 4) then
-                         newLeftNode <- one::LeftNode
-                    else
-                        if(one> List.min (LeftNode)) then 
-                            let minLeft = List.min (LeftNode)
-                            newLeftNode <- (remove minLeft LeftNode)
-                            newLeftNode <- one::LeftNode
-                let str1 = ConvertNumToBase currNodeID maxRows
-                let str2 = ConvertNumToBase one maxRows
-                let samePre = (CountMatches str1 str2) |>int
-                let col = str2.Chars(samePre) |> string |> int 
-                if(table.[samePre,col] = -1) then
-                    table.[samePre, col] <- one
-                
+            
             
             match msg with
             | AddFirstNode (firstGroup) ->
