@@ -326,7 +326,7 @@ let pastryProcess (msg:Message) numNodes numRequests id maxRows count sender sel
             // Array2D.set table i col currNodeID
     | SendAckToMaster(newNodeID) ->
         // addOne (newNodeID, currNodeID ,LeftNode ,RightNode ,maxRows ,table)
-        addOne newNodeID
+        addOne newNodeID currNodeID LeftNode RightNode maxRows table
         sender<!Ack
     | Ack(s) ->
         numOfBack<-numOfBack-1
