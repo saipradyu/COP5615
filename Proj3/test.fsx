@@ -336,7 +336,6 @@ let masterBehavior numNodes numRequests (inbox: Actor<Message>) =
     let maxRows = (Math.Ceiling(Math.Log(numNodes |> double)/Math.Log(4.0)))|> int
     let maxNodes = Math.Pow(4.0,maxRows|>double)|> int
     let mutable GrpOne = List.empty
-    // let i = -1
     let mutable numHops = 0
     let mutable numJoined = 0
     let mutable numNotInBoth = 0
