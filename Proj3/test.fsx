@@ -23,6 +23,7 @@ type Message =
     | AddNodesInNeighborhood of int List
     | SendAckToMaster of int
     | RouteFinish of int*int*int
+    // | Init of int List
 
 
 let numNodes = 10
@@ -327,7 +328,7 @@ let pastryBehaviour numNodes numRequests id maxRows (inbox: Actor<Message>) =
 
 let masterBehavior numNodes numRequests (inbox: Actor<Message>) =
     printfn "Num Nodes : %i  Num Requests : %i " numNodes numRequests;
-    let self = inbox.Self
+    
     let maxRows = (Math.Ceiling(Math.Log(numNodes |> double)/Math.Log(4.0)))|> int
     let maxNodes = Math.Pow(4.0,maxRows|>double)|> int
     let mutable GrpOne = List.empty
@@ -359,6 +360,7 @@ let masterBehavior numNodes numRequests (inbox: Actor<Message>) =
     let rec loop =
         actor {
             let! msg = inbox.Receive()
+            let self = inbox.Self
             match msg with
             | StartTask  ->
                 printfn "\n Initial node created.\n Pastry started.\n"
