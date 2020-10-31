@@ -343,12 +343,6 @@ let masterBehavior numNodes numRequests (inbox: Actor<Message>) =
     let mutable numRouteNotInBoth = 0
     let mutable set = Set.empty
     let groupOneSize = if numNodes<=1024 then numNodes else 1024
-    // let mutable Nodelist = List.empty 
-    // while Nodelist.Length<maxNodes do
-    //     let currID = random.Next(0,maxNodes)
-    //     if( not(Set.contains currID set)) then
-    //         Nodelist <- currID::Nodelist
-    //         set<-Set.add currID set
             
     let Nodelist = shuffle [0 .. maxNodes-1]
     for i=0 to groupOneSize-1 do
