@@ -85,8 +85,6 @@ let ConvertNumToBase raw length =
     
 
 //TODO referenec 2d array type: https://stackoverflow.com/questions/2909310/f-multidimensional-array-types
-
-    
 (***********************Master and Pastry Logic***********************)
 
 let pastryBehaviour numNodes numRequests id maxRows (inbox: Actor<Message>) =
@@ -325,14 +323,12 @@ let pastryBehaviour numNodes numRequests id maxRows (inbox: Actor<Message>) =
                     Async.Sleep(100) |> Async.RunSynchronously
                     //TODO : Check if this works
                     self <! Task ("Route",currNodeID,System.Random().Next(IDSpace),-1)
-                    // let newCount = pastryProcess msg numNodes numRequests id maxRows count sender self
             return! loop 
         }
     loop 
 
 let masterBehavior numNodes numRequests (inbox: Actor<Message>) =
     printfn "Num Nodes : %i  Num Requests : %i " numNodes numRequests;
-    
     let maxRows = (Math.Ceiling(Math.Log(numNodes |> double)/Math.Log(4.0)))|> int
     let maxNodes = Math.Pow(4.0,maxRows|>double)|> int
     let mutable GrpOne = List.empty
@@ -343,7 +339,6 @@ let masterBehavior numNodes numRequests (inbox: Actor<Message>) =
     let mutable numRouteNotInBoth = 0
     let mutable set = Set.empty
     let groupOneSize = if numNodes<=1024 then numNodes else 1024
-            
     let Nodelist = shuffle [0 .. maxNodes-1]
     for i=0 to groupOneSize-1 do
         GrpOne <- Nodelist.Item(i)::GrpOne
