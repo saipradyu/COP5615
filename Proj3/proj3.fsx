@@ -92,54 +92,55 @@ let pastryBehaviour numNodes numRequests id maxRows (inbox: Actor<Message>) =
     let mutable numOfBack = 0
     let mutable table = Array2D.create maxRows 4 -1
     let mutable IDSpace = Math.Pow(4.0,maxRows|>double) |>int
-    let CompleteLeafSet (all: int list)  =
-        for i in all do
-            if (i>currNodeID && (not(List.contains i largeNodeList))) then
+    
+    let buildLeafSet (completeNodesList: int list)  =
+        for node in completeNodesList do
+            if (node>currNodeID && (not(List.contains node largeNodeList))) then
                 if(largeNodeList.Length<4) then
-                    largeNodeList <- i::largeNodeList
+                    largeNodeList <- node::largeNodeList
                 else
-                    if(i<List.max(largeNodeList)) then
+                    if(node<List.max(largeNodeList)) then
                         let maxRight = List.max(largeNodeList)
                         largeNodeList <- (remove maxRight largeNodeList)
-                        largeNodeList <- i::largeNodeList
-            elif (i<currNodeID && (not(List.contains i smallNodeList))) then
+                        largeNodeList <- node::largeNodeList
+            elif (node<currNodeID && (not(List.contains node smallNodeList))) then
                 if(smallNodeList.Length < 4) then
-                    smallNodeList<- i::smallNodeList
+                    smallNodeList<- node::smallNodeList
                 else
-                    if(i>List.min(smallNodeList)) then
+                    if(node>List.min(smallNodeList)) then
                         let minLeft = List.min(smallNodeList)
                         smallNodeList <- (remove minLeft smallNodeList)
-                        smallNodeList <- i::smallNodeList
+                        smallNodeList <- node::smallNodeList
             let str1 = numToBase4 currNodeID maxRows
-            let str2 = numToBase4 i maxRows
+            let str2 = numToBase4 node maxRows
             let samePre = (shl str1 str2)
-            let col = (numToBase4 i maxRows).Chars(samePre)|>string|>int
+            let col = (numToBase4 node maxRows).Chars(samePre)|>string|>int
             if (table.[samePre,col]= (-1)) then
-                table.[samePre, col] <- i
+                table.[samePre, col] <- node
 
-    let addOne (one:int) =
-        if(one> currNodeID && (not (List.contains one largeNodeList))) then
+    let addNodeToLeafSet (node:int) =
+        if(node> currNodeID && (not (List.contains node largeNodeList))) then
             if(largeNodeList.Length <4) then
-                largeNodeList <- one::largeNodeList
+                largeNodeList <- node::largeNodeList
             else
-                if(one < List.max(largeNodeList)) then
+                if(node < List.max(largeNodeList)) then
                     let maxRight = List.max (largeNodeList)
                     largeNodeList <- (remove maxRight largeNodeList)
-                    largeNodeList <- one::largeNodeList
-        elif (one < currNodeID && (not (List.contains one smallNodeList))) then
+                    largeNodeList <- node::largeNodeList
+        elif (node < currNodeID && (not (List.contains node smallNodeList))) then
             if(smallNodeList.Length < 4) then
-                 smallNodeList <- one::smallNodeList
+                 smallNodeList <- node::smallNodeList
             else
-                if(one> List.min (smallNodeList)) then 
+                if(node> List.min (smallNodeList)) then 
                     let minLeft = List.min (smallNodeList)
                     smallNodeList <- (remove minLeft smallNodeList)
-                    smallNodeList <- one::smallNodeList
+                    smallNodeList <- node::smallNodeList
         let str1 = numToBase4 currNodeID maxRows
-        let str2 = numToBase4 one maxRows
+        let str2 = numToBase4 node maxRows
         let samePre = (shl str1 str2) |>int
         let col = str2.Chars(samePre) |> string |> int 
         if(table.[samePre,col] = (-1)) then
-            table.[samePre, col] <- one
+            table.[samePre, col] <- node
         
     
     let rec loop =
@@ -150,7 +151,7 @@ let pastryBehaviour numNodes numRequests id maxRows (inbox: Actor<Message>) =
             match message with
             | AddFirstNode (firstGroup) ->
                 let newFirstGroup =  (remove currNodeID firstGroup)
-                CompleteLeafSet newFirstGroup
+                buildLeafSet newFirstGroup
                 for i=0 to maxRows-1 do
                     let col = (numToBase4 currNodeID maxRows).Chars(i) |> string |> int 
                     table.[i, col] <- currNodeID
@@ -285,7 +286,7 @@ let pastryBehaviour numNodes numRequests id maxRows (inbox: Actor<Message>) =
                     if (table.[rowNum,i] = -1) then
                         table.[rowNum, i] <- newRow.[i]
             | AddNodesInNeighborhood (nodesSet) ->
-                CompleteLeafSet nodesSet
+                buildLeafSet nodesSet
                 for i in smallNodeList do 
                     numOfBack <- numOfBack+1
                     let nextNode = getWorkerRef i
@@ -305,7 +306,7 @@ let pastryBehaviour numNodes numRequests id maxRows (inbox: Actor<Message>) =
                     let col = (numToBase4 currNodeID maxRows).Chars(i) |> string |> int 
                     table.[i, col] <- currNodeID
             | SendAckToMaster(newNodeID) ->
-                addOne newNodeID
+                addNodeToLeafSet newNodeID
                 sender<!Ack
             | Ack ->
                 numOfBack<-numOfBack-1
