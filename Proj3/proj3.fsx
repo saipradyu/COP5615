@@ -11,7 +11,7 @@ let mutable flag = true
 type Message =
     | Start    
     | StartRouting 
-    | JoinNodesInDT
+    | JoinNodes
     | Ack
     | JoinFinish
     | NodeNotFound 
@@ -82,7 +82,6 @@ let numToBase4 raw length =
     str
     
 
-//TODO referenec 2d array type: https://stackoverflow.com/questions/2909310/f-multidimensional-array-types
 (***********************Master and Pastry Logic***********************)
 
 let pastryBehaviour numNodes numRequests id maxRows (inbox: Actor<Message>) =
@@ -205,7 +204,6 @@ let pastryBehaviour numNodes numRequests id maxRows (inbox: Actor<Message>) =
                         let mutable list = List.append smallNodeList largeNodeList
                         list <- currNodeID::list
                         let mutable nodesSet = list
-                        // //TODO Dbt? nodesSet += currNodeID ++= smallNodeList ++= largeNodeList What does it do? append all together?
                         let nextNode = getWorkerRef toID
                         nextNode<! AddNodesInNeighborhood nodesSet
                     elif table.[samePre, str2.Chars(samePre) |> string |> int ] <> -1 then
@@ -316,7 +314,6 @@ let pastryBehaviour numNodes numRequests id maxRows (inbox: Actor<Message>) =
             | StartRoutingWorker  ->
                 for i = 1 to numRequests do
                     Async.Sleep(100) |> Async.RunSynchronously
-                    //TODO : Check if this works
                     self <! Task ("Route",currNodeID,System.Random().Next(IDSpace),-1)
             | _ -> 
                 printfn "Invalid case!"
@@ -351,45 +348,37 @@ let masterBehavior numNodes numRequests (inbox: Actor<Message>) =
             let self = inbox.Self
             match message with
             | Start  ->
-                // printfn "\n Initial node created.\n Pastry started.\n"
+                printfn "\n Initial node created.\n Pastry started.\n"
                 printfn "Joining.\n"
                 for i=0 to initialNetworkSize-1 do
                     let nodeIDInt = (nodeList.Item(i))
                     let worker = getWorkerRef nodeIDInt
-                    // let mutable cloneGroupOne = initialNetwork
-                    // TODO : check clone ?
                     worker<! AddFirstNode(clone initialNetwork)
             | JoinFinish ->
                 numJoined <- numJoined + 1
                 if (numJoined = initialNetworkSize) then
                     if(numJoined>=numNodes) then
-                    //TODO : Check self?
                         self<! StartRouting
                     else
-                        self<! JoinNodesInDT
+                        self<! JoinNodes
                 if(numJoined>initialNetworkSize) then
                     if(numJoined=numNodes) then
                         self<!StartRouting
                     else
-                        self<!JoinNodesInDT   
-            | JoinNodesInDT ->
-                // TODO : https://docs.microsoft.com/en-us/dotnet/api/system.random.next?view=netcore-3.1#System_Random_Next_System_Int32_
+                        self<!JoinNodes   
+            | JoinNodes ->
                 let startID = nodeList.Item(random.Next(numJoined))
                 let startWorker = getWorkerRef startID
-                printfn "JoinNodesInDT startID %i" startID
                 startWorker <! Task ("Join", startID, nodeList.Item(numJoined) ,-1)
             | StartRouting->
-                //  printfn "Node Join Finished.\n"
-                //  printfn "Routing started."
+                printfn "Node Join Finished.\n"
+                printfn "Routing started."
                 printfn "Joined" 
                 printfn "Routing"
-                 //TODO : check all workers?
                 for i=0 to numNodes-1 do
                     let nodeIDInt = (nodeList.Item(i))
                     let nextNode = getWorkerRef nodeIDInt
                     nextNode<!StartRoutingWorker
-                // let allWorkers = getAllWorkerRef
-                // allWorkers <! StartRoutingWorker
             | NodeNotFound ->
                 numNotInBoth <- numNotInBoth + 1
             | RouteFinish(fromID,toID, hops)->
