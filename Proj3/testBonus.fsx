@@ -361,9 +361,9 @@ let pastryBehaviour numNodes numRequests id maxRows (currNodelist:int List) (inb
                         self <! Task ("Route",currNodeID,System.Random().Next(IDSpace),-1)
             | NodeDie ->
                 // isDead<-true
+                printfn "Dead %i" currNodeID
                 for node in activeNodes do
                     let nextNode = getWorkerRef node
-                    printfn "Dead %i" currNodeID
                     let currNode = getWorkerRef currNodeID
                     nextNode<!RemoveNode currNodeID
                 // for node in activeNodes do
