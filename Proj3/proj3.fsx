@@ -25,9 +25,16 @@ type Message =
     | StartRoutingWorker
 
 
-let numNodes = 100
-let numRequests = 5
+
 (**************************Utility*********************************)
+match fsi.CommandLineArgs.Length with
+| 3 -> ignore
+| _ -> failwith "Requires number of nodes and number of requests"
+
+let args = fsi.CommandLineArgs |> Array.tail
+let numNodes = args.[0] |> int
+let numRequests = args.[1] |> int
+
 let getMasterRef = 
     let actorPath = @"akka://FSharp/user/master"
     select actorPath system
@@ -345,8 +352,8 @@ let masterBehavior numNodes numRequests (inbox: Actor<Message>) =
             let self = inbox.Self
             match message with
             | Start  ->
-                printfn "\n Initial node created.\n Pastry started.\n"
-                printfn "Joining.\n"
+                printfn "Pastry started.\nInitial node created."
+                printfn "Joining."
                 for i=0 to initialNetworkSize-1 do
                     let nodeIDInt = (nodeList.Item(i))
                     let worker = getWorkerRef nodeIDInt
@@ -368,10 +375,8 @@ let masterBehavior numNodes numRequests (inbox: Actor<Message>) =
                 let startWorker = getWorkerRef startID
                 startWorker <! Task ("Join", startID, nodeList.Item(numJoined) ,-1)
             | StartRouting->
-                printfn "Node Join Finished.\n"
-                printfn "Routing started."
-                printfn "Joined" 
-                printfn "Routing"
+                printfn "Node Join Finished."
+                printfn "Routing has started."
                 for i=0 to numNodes-1 do
                     let nodeIDInt = (nodeList.Item(i))
                     let nextNode = getWorkerRef nodeIDInt
@@ -390,7 +395,6 @@ let masterBehavior numNodes numRequests (inbox: Actor<Message>) =
                     printfn "Routing finished.\n"
                     printfn "Total number of routes:%u " numRouted
                     printfn "Total number of hops:%i " numHops
-                    printfn "Routing finished.\n"
                     let avgHops= (numHops|>double)/(numRouted|>double)
                     printfn "Average number of hops per route: %f"  avgHops
                     flag<-false
