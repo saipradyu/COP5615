@@ -335,7 +335,6 @@ let masterBehavior numNodes numRequests (inbox: Actor<Message>) =
     let mutable numNotInBoth = 0
     let mutable numRouted = 0
     let mutable numRouteNotInBoth = 0
-    let mutable set = Set.empty
     let initialNetworkSize = if numNodes<=1024 then numNodes else 1024
     let nodeList = shuffle [0 .. maxNodes-1]
     for i=0 to initialNetworkSize-1 do
