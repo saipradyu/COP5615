@@ -25,8 +25,8 @@ type Message =
     | StartRoutingWorker
 
 
-let numNodes = 300
-let numRequests = 120
+let numNodes = 100
+let numRequests = 5
 (**************************Utility*********************************)
 let getMasterRef = 
     let actorPath = @"akka://FSharp/user/master"
@@ -164,11 +164,9 @@ let pastryBehaviour numNodes numRequests id maxRows (inbox: Actor<Message>) =
                         for i = 0 to samePre-1 do
                             let nextNode = getWorkerRef toID
                             let mutable currRow = table.[i,*]
-                            printfn "Before currID %i  newRow %A" currNodeID currRow
                             nextNode <! AddRow (i,currRow)
                     let nextNewNode = getWorkerRef toID
                     let mutable samePrefixRow = table.[samePre,*]
-                    printfn "Before currID %i  newRow %A" currNodeID samePrefixRow
                     nextNewNode <! AddRow (samePre, samePrefixRow)
                     if((smallNodeList.Length>0 && toID>=List.min(smallNodeList)&& toID<=currNodeID)||(largeNodeList.Length>0 && toID<=List.max(largeNodeList)&& toID>=currNodeID)) then
                         let mutable diff = IDSpace + 10
@@ -279,7 +277,6 @@ let pastryBehaviour numNodes numRequests id maxRows (inbox: Actor<Message>) =
                         else 
                             printfn "Impossible!"
             | AddRow (rowNum,(newRow:int[])) ->
-                printfn "After currID %i  newRow %A" currNodeID newRow
                 for i=0 to 3 do
                     if (table.[rowNum,i] = -1) then
                         table.[rowNum, i] <- newRow.[i]
@@ -387,7 +384,7 @@ let masterBehavior numNodes numRequests (inbox: Actor<Message>) =
                 for i = 1 to 10 do 
                     if (numRouted= (numNodes* numRequests * i/10)) then
                         for j=1 to i do
-                            printf "."
+                            printf "*"
                         printf "|"
                 if(numRouted >= (numNodes*numRequests)) then
                     printfn "Routing finished.\n"
