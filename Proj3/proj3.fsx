@@ -17,7 +17,7 @@ type Message =
     | NodeNotFound 
     | RouteToNodeNotFound
     | AddFirstNode of int List
-    | Task of string*int*int*int
+    | Action of string*int*int*int
     | AddRow of int*int[]
     | AddNodesInNeighborhood of int List
     | SendAckToMaster of int
@@ -162,7 +162,7 @@ let pastryBehaviour numNodes numRequests id maxRows (inbox: Actor<Message>) =
                     let col = (numToBase4 currNodeID maxRows).Chars(i) |> string |> int 
                     table.[i, col] <- currNodeID
                 sender <! JoinFinish
-            | Task (message, fromID, toID, hops) ->
+            | Action (message, fromID, toID, hops) ->
                 if(message.Equals("Join")) then 
                     let str1 = numToBase4 currNodeID maxRows
                     let str2 = numToBase4 toID maxRows
@@ -190,7 +190,7 @@ let pastryBehaviour numNodes numRequests id maxRows (inbox: Actor<Message>) =
                                     diff <- abs(toID-i)
                         if abs(toID-currNodeID) > diff then
                             let nextNode = getWorkerRef nearest
-                            nextNode<! Task (message,fromID,toID,hops+1)
+                            nextNode<! Action (message,fromID,toID,hops+1)
                         else
                             let mutable list = List.append smallNodeList largeNodeList
                             list <- currNodeID::list
@@ -200,11 +200,11 @@ let pastryBehaviour numNodes numRequests id maxRows (inbox: Actor<Message>) =
                     elif(smallNodeList.Length<4 && smallNodeList.Length>0 && toID<List.min (smallNodeList)) then
                         let minLeft = List.min (smallNodeList)
                         let nextNode = getWorkerRef minLeft
-                        nextNode<! Task (message, fromID, toID, hops+1)
+                        nextNode<! Action (message, fromID, toID, hops+1)
                     elif (largeNodeList.Length<4 && largeNodeList.Length>0 && toID>List.max (largeNodeList)) then
                         let maxRight = List.max (largeNodeList)
                         let nextNode = getWorkerRef maxRight
-                        nextNode<! Task (message, fromID, toID, hops+1)
+                        nextNode<! Action (message, fromID, toID, hops+1)
                     elif ((smallNodeList.Length = 0 && toID<currNodeID)||(largeNodeList.Length = 0 && toID>currNodeID)) then
                         let mutable list = List.append smallNodeList largeNodeList
                         list <- currNodeID::list
@@ -215,17 +215,17 @@ let pastryBehaviour numNodes numRequests id maxRows (inbox: Actor<Message>) =
                         let col = str2.Chars(samePre) |> string |> int 
                         let nextNodeID = table.[samePre,col]
                         let nextNode = getWorkerRef nextNodeID
-                        nextNode <! Task (message,fromID,toID,hops+1)
+                        nextNode <! Action (message,fromID,toID,hops+1)
                     elif toID> currNodeID then
                         let maxRight = List.max (largeNodeList)
                         let nextNode = getWorkerRef maxRight
-                        nextNode<! Task(message, fromID, toID, hops+1)
+                        nextNode<! Action(message, fromID, toID, hops+1)
                         let masterRef = getMasterRef
                         masterRef <! NodeNotFound
                     elif toID<currNodeID then
                         let minLeft = List.min (smallNodeList)
                         let nextNode = getWorkerRef minLeft
-                        nextNode<! Task (message ,fromID ,toID, hops+1)
+                        nextNode<! Action (message ,fromID ,toID, hops+1)
                         let masterRef = getMasterRef
                         masterRef <! NodeNotFound
                     else
@@ -253,32 +253,32 @@ let pastryBehaviour numNodes numRequests id maxRows (inbox: Actor<Message>) =
                                         diff <- abs(toID-i)
                             if(abs(toID - currNodeID)>diff) then
                                 let nextNode = getWorkerRef nearest
-                                nextNode<! Task (message, fromID, toID, hops+1)
+                                nextNode<! Action (message, fromID, toID, hops+1)
                             else
                                 getMasterRef<! RouteFinish (fromID, toID ,hops+1)
                         elif (smallNodeList.Length<4 && smallNodeList.Length > 0 && toID<List.min (smallNodeList)) then
                             let minLeft = List.min (smallNodeList)
                             let nextNode = getWorkerRef minLeft
-                            nextNode <! Task (message,fromID,toID,hops+1)
+                            nextNode <! Action (message,fromID,toID,hops+1)
                         elif (largeNodeList.Length <4 && largeNodeList.Length>0 && toID>List.max (largeNodeList)) then
                             let maxRight = List.max (largeNodeList)
                             let nextNode = getWorkerRef maxRight
-                            nextNode<! Task (message ,fromID ,toID, hops+1)
+                            nextNode<! Action (message ,fromID ,toID, hops+1)
                         elif ((smallNodeList.Length = 0 && toID <currNodeID)||(largeNodeList.Length = 0 && toID > currNodeID)) then
                             getMasterRef<! RouteFinish (fromID, toID, hops+1)
                         elif (table.[samePre,str2.Chars(samePre) |> string |> int ] <> -1) then
                             let col = str2.Chars(samePre) |> string |> int 
                             let nextNode = getWorkerRef table.[samePre,col]
-                            nextNode<! Task (message, fromID, toID, hops+1)
+                            nextNode<! Action (message, fromID, toID, hops+1)
                         elif toID >currNodeID then
                             let maxRight = List.max (largeNodeList)
                             let nextNode = getWorkerRef maxRight
-                            nextNode<!Task (message, fromID, toID, hops+1)
+                            nextNode<!Action (message, fromID, toID, hops+1)
                             getMasterRef<!RouteToNodeNotFound
                         elif toID<currNodeID then
                             let minLeft = List.min (smallNodeList)
                             let nextNode = getWorkerRef minLeft
-                            nextNode<! Task (message,fromID,toID,hops+1)
+                            nextNode<! Action (message,fromID,toID,hops+1)
                             let masterRef = getMasterRef
                             masterRef <! RouteToNodeNotFound
                         else 
@@ -317,8 +317,8 @@ let pastryBehaviour numNodes numRequests id maxRows (inbox: Actor<Message>) =
                     masterRef <! JoinFinish
             | StartRoutingWorker  ->
                 for i = 1 to numRequests do
-                    Async.Sleep(100) |> Async.RunSynchronously
-                    self <! Task ("Route",currNodeID,System.Random().Next(IDSpace),-1)
+                    Async.Sleep(1000) |> Async.RunSynchronously
+                    self <! Action ("Route",currNodeID,System.Random().Next(IDSpace),-1)
             | _ -> 
                 printfn "Invalid case!"
             return! loop 
@@ -372,7 +372,7 @@ let masterBehavior numNodes numRequests (inbox: Actor<Message>) =
             | JoinNodes ->
                 let startID = nodeList.Item(random.Next(numJoined))
                 let startWorker = getWorkerRef startID
-                startWorker <! Task ("Join", startID, nodeList.Item(numJoined) ,-1)
+                startWorker <! Action ("Join", startID, nodeList.Item(numJoined) ,-1)
             | StartRouting->
                 printfn "Node Join Finished."
                 printfn "Routing has started."
