@@ -344,10 +344,10 @@ let pastryBehaviour numNodes numRequests id maxRows (currNodelist:int List) (inb
                         masterRef <! JoinFinish
             | StartRoutingWorker  ->
                     for i = 1 to numRequests do
-                        Async.Sleep(100) |> Async.RunSynchronously
+                        Async.Sleep(1000) |> Async.RunSynchronously
                         self <! Action ("Route",currNodeID,System.Random().Next(IDSpace),-1)
             | NodeDie ->
-                printfn "Dead %i" currNodeID
+                printfn "Dead Node ID %i" currNodeID
                 for node in activeNodes do
                     let nextNode = getWorkerRef node
                     let currNode = getWorkerRef currNodeID
@@ -494,7 +494,7 @@ let masterBehavior numNodes numRequests numFailingNodes (inbox: Actor<Message>) 
                     failNodes <- nodeList.Item(i)::failNodes
                     let nextNode = getWorkerRef (nodeList.Item(i))
                     nextNode<! NodeDie
-                Async.Sleep(100) |> Async.RunSynchronously
+                Async.Sleep(1000) |> Async.RunSynchronously
                 self <! StartRouting failNodes
             |_->
                 printfn "Invalid case!"

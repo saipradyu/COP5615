@@ -1,0 +1,33 @@
+
+Nodes = 3500
+Requests = 1200
+
+
+Total number of routes:4200000
+Total number of hops:18014731
+Routing finished.
+
+Average number of hops per route: 4.289222
+Real: 01:45:34.826, CPU: 02:09:24.281, GC gen0: 18159, gen1: 4222, gen2: 30
+Press any key to continue . . . 
+
+
+
+
+
+
+Nodes = 10000
+Requests = 100
+
+Routing started.
+Joined
+Routing
+.|..|...|....|.....|......|.......|........|.........|..........|Routing finished.
+
+Total number of routes:1000000
+Total number of hops:4952315
+Routing finished.
+
+Average number of hops per route: 4.952315
+Real: 02:42:59.273, CPU: 02:56:13.984, GC gen0: 6263, gen1: 1314, gen2: 8
+Press any key to continue . . . 
