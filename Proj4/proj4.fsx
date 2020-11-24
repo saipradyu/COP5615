@@ -12,7 +12,7 @@ let mutable activeUsers = List.empty
 
 type Messages = 
     | CreateUser of string
-    | AddFollower
+    | AddFollower of string * string
     | Login of string
     | Logout of string
     | QueryMentions of string
@@ -26,6 +26,11 @@ type TwitterTableValues =
     | MentionsTableVal of string List
     | HashTagsTableVal of string List
     | TweetsTableVal of string
+
+let mutable usersTable  = Map.empty
+let mutable mentionsTable = Map.empty
+let mutable hashTagsTable = Map.empty
+let mutable tweetsTable = Map.empty
 (**************************Utility*********************************)
 let rec remove n lst = 
     match lst with
@@ -44,7 +49,7 @@ let insertUser (username:string) (tweetList:int List) (followerList:string List)
     printfn "%s" username
 
 // Tweet table <tweetID, tweet>
-let insertTweet (tweetID:string) (tweet:string) = 
+let insertTweet (tweetID:int) (tweet:string) = 
     let value = TweetsTableVal(tweet)
     tweetsTable <- tweetsTable.Add(tweetID,value)
 
@@ -71,7 +76,8 @@ let insertMention (mention:string) (tweet:string) =
         match twitterTableVal with
         | MentionsTableVal (tList) ->
             let newTweetList = tweet::tList
-            mentionsTable<-mentionsTable.Add(mention,newTweetList)
+            let tableVal = MentionsTableVal(newTweetList)
+            mentionsTable<-mentionsTable.Add(mention,tableVal)
         | _-> 
             printfn "Error"
     | None ->
@@ -87,21 +93,23 @@ let generateTweetID =
     let tweetIDList = tweetsTable |> Map.toSeq |> Seq.map fst |> Seq.toList
     while continueLooping do
         if(not(List.contains tweetID tweetIDList)) then
-            continueLooping<-false
+            continueLooping <- false
         else
             tweetID <- getRandom
     tweetID
 
-let updateUserTweet (tweetID:int) (username:string)
+let updateUserTweet (tweetID:int) (username:string) =
     let mapValue = usersTable.TryFind username
-        match mapValue with 
-        | Some twitterTableVal ->
-            match twitterTableVal with
-            | UsersTableVal ( tList, fList) ->
-                let newTweetList = tweetID::tList
-                insertUser username newTweetList fList
-        | None ->
+    match mapValue with 
+    | Some twitterTableVal ->
+        match twitterTableVal with
+        | UsersTableVal ( tList, fList) ->
+            let newTweetList = tweetID::tList
+            insertUser username newTweetList fList
+        | _-> 
             printfn "Error"
+    | None ->
+        printfn "Error"
 
 (*******************Driver code ********************)
 match fsi.CommandLineArgs.Length with
@@ -127,6 +135,7 @@ let getServerRef =
 let serverFunction message = 
     match message with 
     | Init ->
+        printfn "TODO"
         //TODO : Read from files and insert into tables
     | CreateUser(username) ->
         spawn system username 
