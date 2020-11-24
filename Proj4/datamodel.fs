@@ -9,8 +9,7 @@ module TwitterDatamodel =
         | TweetsTableVal of string
 
 
-    type ServerMessages = 
+    type Messages = 
         | CreateUser
-        | GetUser
         | AddFollower
 
