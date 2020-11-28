@@ -27,15 +27,12 @@ type Command =
   | Subscribe of string * string
   | Tweet of string * string
   | Retweet of string * int
-  | GetMention of string
-  | GetHashTag of string
-  | GetSubFeed of string
   
 type Response =
   | Feed of Tweet List
   | Mention of Tweet List
   | Hashtag of Tweet List
-  | Update of string * Tweet * bool  
+  | Update of string * string * Tweet  // sender, type(tweet, RT, mention), tweet
 
 let getUserRef u =
     let actorPath = @"akka://FSharp/user/" + string u

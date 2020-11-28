@@ -100,9 +100,6 @@ let engineBehavior (inbox: Actor<Command>) =
             | Subscribe(u, s) -> handleSubscribe u s
             | Tweet(u, m) -> failwith "Not Implemented"
             | Retweet(u, i) -> failwith "Not Implemented"
-            | GetMention(m) -> failwith "Not Implemented"
-            | GetHashTag(h) -> failwith "Not Implemented"
-            | GetSubFeed(s) -> failwith "Not Implemented"
             return! loop ()
         }
 
