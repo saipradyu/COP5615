@@ -70,7 +70,7 @@ let engineBehavior (inbox: Actor<Command>) =
       let followerList = record.Followers
       for follower in followerList do 
         let followerActor = getUserRef follower
-        followerActor <! Update (sender,"Tweet",tweet)
+        followerActor <! Update (sender,follower,"Tweet",tweet)
 
     let handleRetweet u i = 
       let tweet = (tweets.TryFind i).Value  

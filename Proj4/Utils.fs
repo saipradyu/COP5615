@@ -35,7 +35,7 @@ type Command =
 type Response =
   | Feed of Tweet
   | Mention of Tweet
-  | Update of string * string * Tweet  // sender, type(tweet, RT, mention), tweet
+  | Update of string * string * string * Tweet  // sender, type(tweet, RT, mention), tweet
   //| Hashtag of Tweet
 
 let getUserRef u =

@@ -20,9 +20,9 @@ let receiveTweet (sender:string) (inbox: Actor<_>) =
             | Mention (mentionedTweet) ->  
                 let tweet = mentionedTweet.Message
                 printfn "%s has mentioned you in tweet : %s" sender tweet
-            | Update (sender,tweetType,tweetObj) ->
+            | Update (sender, receiver, tweetType,tweetObj) ->
                 if tweetType.Equals("Tweet") then
-                    printfn "%s has tweeted : %s" sender tweetObj.Message
+                    printfn "%s 's Timeline \n %s has tweeted : %s" receiver sender tweetObj.Message
                     timelineTweets <- (tweetObj)::timelineTweets
             return! loop ()
         }
