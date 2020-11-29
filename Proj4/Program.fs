@@ -28,7 +28,8 @@ let main argv =
         let mutable followerList = List.empty
         for i = 0 to (userList.Length/2) do
             let follower = pickRandom(userList);
-            if not (follower.Equals(user)) then 
+            // Follower shouldnt be the currect username and the follower actor should be present in the system
+            if not (follower.Equals(user)) && not (isNull(getUserRef follower)) then 
                 followerList<- pickRandom(userList)::followerList
         for follower in followerList do
             let followerActor = getUserRef follower
@@ -36,7 +37,9 @@ let main argv =
     for i=0 to numOfTweets-1 do
         let userRef = pickRandom(userList);
         let tweet = pickRandom(tweetList)
-        engineRef <! TweetCommand (userRef,tweet)
+        let userActor = getUserRef userRef
+        sendTweet userRef tweet
+        // engineRef <! TweetCommand (userRef,tweet)
     
     // engineRef <! Register("user1")
     while flag do ignore()

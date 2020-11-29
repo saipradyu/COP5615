@@ -24,6 +24,9 @@ let receiveTweet (sender:string) (inbox: Actor<_>) =
                 if tweetType.Equals("Tweet") then
                     printfn "%s 's Timeline \n %s has tweeted : %s" receiver sender tweetObj.Message
                     timelineTweets <- (tweetObj)::timelineTweets
+                elif tweetType.Equals("Retweet") then
+                    printfn "%s 's Timeline \n %s has retweeted : %s" receiver sender tweetObj.Message
+                    timelineTweets <- (tweetObj)::timelineTweets
             return! loop ()
         }
     loop ()

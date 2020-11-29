@@ -67,16 +67,20 @@ let engineBehavior (inbox: Actor<Command>) =
       tweets <- tweets.Add(tid, tweet)
       if not (isNull htag) then (insertTag htag tweet)  
       if not (isNull men) then (insertMention men tweet)
-      let followerList = record.Followers
+      let followerList = update.Followers
       for follower in followerList do 
         let followerActor = getUserRef follower
         followerActor <! Update (sender,follower,"Tweet",tweet)
 
-    let handleRetweet u i = 
-      let tweet = (tweets.TryFind i).Value  
-      let record = (users.TryFind u).Value
+    let handleRetweet sender tweetStr = 
+      let tweet = (tweets.TryFind tweetStr).Value  
+      let record = (users.TryFind sender).Value
       let update = { record with TweetList = tweet::record.TweetList }
-      users <- users.Add(u, update)      
+      users <- users.Add(sender, update)
+      let followerList = update.Followers
+      for follower in followerList do 
+        let followerActor = getUserRef follower
+        followerActor <! Update (sender,follower,"Retweet",tweet)
 
     let handleGetMention m = 
       if (mentions.TryFind m).IsSome then
@@ -101,8 +105,8 @@ let engineBehavior (inbox: Actor<Command>) =
             | Login (u) -> failwith "Not Implemented"
             | Logout (u) -> failwith "Not Implemented"
             | Subscribe(u, s) -> handleSubscribe u s
-            | TweetCommand(u, m) -> handleTweet u m
-            | Retweet(u, i) -> failwith "Not Implemented"
+            | TweetCommand(sender, tweetStr) -> handleTweet sender tweetStr
+            | Retweet(sender, tweetStr) -> handleRetweet sender tweetStr
             return! loop ()
         }
 
