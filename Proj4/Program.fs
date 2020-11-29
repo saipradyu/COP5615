@@ -38,7 +38,12 @@ let main argv =
         let userRef = pickRandom(userList);
         let tweet = pickRandom(tweetList)
         let userActor = getUserRef userRef
-        sendTweet userRef tweet
+        sendTweet userRef  tweet
+    // for i=0 to numOfTweets-1 do
+    //     let userRef = pickRandom(userList);
+    //     let tweet = pickRandom(tweetList)
+    //     let userActor = getUserRef userRef
+    //     sendTweet userRef tweet
         // engineRef <! TweetCommand (userRef,tweet)
     
     // engineRef <! Register("user1")

@@ -29,7 +29,7 @@ type Command =
   | Login of string
   | Logout of string
   | Subscribe of string * string
-  | TweetCommand of string * string
+  | TweetCommand of string  * string 
   | Retweet of string * int
   
 type Response =

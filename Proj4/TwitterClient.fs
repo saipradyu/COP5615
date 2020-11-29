@@ -9,6 +9,11 @@ let mutable timelineTweets = List.empty
 let sendTweet (sender:string) (tweetStr:string)= 
     let engineActor = getUserRef "engine"
     engineActor <! TweetCommand (sender,tweetStr)
+        
+        
+let sendRetweet (sender:string) (tweetID:int) = 
+    let engineActor = getUserRef "engine"
+    engineActor <! Retweet (sender,tweetID)
 
 let receiveTweet (sender:string) (inbox: Actor<_>) =
     let rec loop () =
@@ -27,6 +32,10 @@ let receiveTweet (sender:string) (inbox: Actor<_>) =
                 elif tweetType.Equals("Retweet") then
                     printfn "%s 's Timeline \n %s has retweeted : %s" receiver sender tweetObj.Message
                     timelineTweets <- (tweetObj)::timelineTweets
+                elif tweetType.Equals("Mention") then
+                    printfn "%s 's Timeline \n %s has mentioned you : %s" receiver sender tweetObj.Message
+                    timelineTweets <- (tweetObj)::timelineTweets
+
             return! loop ()
         }
     loop ()

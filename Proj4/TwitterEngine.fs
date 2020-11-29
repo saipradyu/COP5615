@@ -23,6 +23,11 @@ let engineBehavior (inbox: Actor<Command>) =
         else 
           tid <- random.Next()  
       tid
+    
+    let extractString (inputStr:string) = 
+      let len = inputStr.Length;
+      let outputStr = inputStr.[1..len-1]
+      outputStr
 
     let handleRegister u =
       if users.ContainsKey u then
@@ -56,24 +61,39 @@ let engineBehavior (inbox: Actor<Command>) =
         let mup = { Id = men; TweetList = List.singleton t}
         mentions <- mentions.Add(men, mup)
       
-    let handleTweet sender tweetStr = 
-      let htag = patternMatch tweetStr hpat
-      let men = patternMatch tweetStr mpat
+    let handleTweet sender (tweetStr:string) = 
+      let wordList = tweetStr.Split(" ") |> Array.toList
+      let rawHashtagList = wordList |> List.filter (fun s -> s.StartsWith('#'))
+      let rawMentionList = wordList |> List.filter (fun s -> s.StartsWith('@'))
       let record = (users.TryFind sender).Value
       let tid = genUniqueTID
       let tweet = { Id = tid; Message = tweetStr}
+      let mutable mentionList = List.empty
+      let mutable hashTagList = List.empty
+      for username in rawMentionList do
+        let extractUser = extractString username
+        mentionList<-extractUser::mentionList
+        //Insert into mention table
+        insertMention extractUser tweet
+        let userActor = getUserRef extractUser
+        //Notify mentioned users
+        userActor <! Update(sender,extractUser,"Mention",tweet)
       let update = { record with TweetList = tweet::record.TweetList }
       users <- users.Add(sender, update)
       tweets <- tweets.Add(tid, tweet)
-      if not (isNull htag) then (insertTag htag tweet)  
-      if not (isNull men) then (insertMention men tweet)
+      if (rawHashtagList.Length>0) then
+        for htag in rawHashtagList do
+          let extractHashtag = extractString htag
+          hashTagList<-extractHashtag::hashTagList
+           //Insert into hashtag table
+          insertTag extractHashtag tweet
       let followerList = update.Followers
       for follower in followerList do 
         let followerActor = getUserRef follower
         followerActor <! Update (sender,follower,"Tweet",tweet)
 
-    let handleRetweet sender tweetStr = 
-      let tweet = (tweets.TryFind tweetStr).Value  
+    let handleRetweet sender tweetID = 
+      let tweet = (tweets.TryFind tweetID).Value  
       let record = (users.TryFind sender).Value
       let update = { record with TweetList = tweet::record.TweetList }
       users <- users.Add(sender, update)
@@ -94,7 +114,10 @@ let engineBehavior (inbox: Actor<Command>) =
         let hrec = (hashtags.TryFind h).Value
         hrec.TweetList
       else
-        List.empty  
+        List.empty
+
+    // let handleRequest commandStr:string = 
+    //   if()
 
     let rec loop () =
         actor {
@@ -106,7 +129,8 @@ let engineBehavior (inbox: Actor<Command>) =
             | Logout (u) -> failwith "Not Implemented"
             | Subscribe(u, s) -> handleSubscribe u s
             | TweetCommand(sender, tweetStr) -> handleTweet sender tweetStr
-            | Retweet(sender, tweetStr) -> handleRetweet sender tweetStr
+            | Retweet(sender, tweetID) -> handleRetweet sender tweetID
+            // | GetTweetID (tweetString) -> handleRequest commandStr
             return! loop ()
         }
 
