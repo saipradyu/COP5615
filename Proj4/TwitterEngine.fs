@@ -63,30 +63,23 @@ let engineBehavior (inbox: Actor<Command>) =
       
     let handleTweet sender (tweetStr:string) = 
       let wordList = tweetStr.Split(" ") |> Array.toList
-      let rawHashtagList = wordList |> List.filter (fun s -> s.StartsWith('#'))
+      let htag = wordList |> List.filter (fun s -> s.StartsWith('#'))
       let rawMentionList = wordList |> List.filter (fun s -> s.StartsWith('@'))
       let record = (users.TryFind sender).Value
       let tid = genUniqueTID
       let tweet = { Id = tid; Message = tweetStr}
       let mutable mentionList = List.empty
-      let mutable hashTagList = List.empty
+      //Notify mentioned users
       for username in rawMentionList do
         let extractUser = extractString username
         mentionList<-extractUser::mentionList
-        //Insert into mention table
-        insertMention extractUser tweet
         let userActor = getUserRef extractUser
-        //Notify mentioned users
         userActor <! Update(sender,extractUser,"Mention",tweet)
       let update = { record with TweetList = tweet::record.TweetList }
       users <- users.Add(sender, update)
       tweets <- tweets.Add(tid, tweet)
-      if (rawHashtagList.Length>0) then
-        for htag in rawHashtagList do
-          let extractHashtag = extractString htag
-          hashTagList<-extractHashtag::hashTagList
-           //Insert into hashtag table
-          insertTag extractHashtag tweet
+      // if not (isNull htag) then (insertTag htag tweet)  
+      // if not (isNull men) then (insertMention men tweet)
       let followerList = update.Followers
       for follower in followerList do 
         let followerActor = getUserRef follower

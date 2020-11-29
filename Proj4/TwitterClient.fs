@@ -27,13 +27,13 @@ let receiveTweet (sender:string) (inbox: Actor<_>) =
                 printfn "%s has mentioned you in tweet : %s" sender tweet
             | Update (sender, receiver, tweetType,tweetObj) ->
                 if tweetType.Equals("Tweet") then
-                    printfn "%s 's Timeline \n %s has tweeted : %s" receiver sender tweetObj.Message
+                    printfn "%s's Timeline \n %s has tweeted : %s" receiver sender tweetObj.Message
                     timelineTweets <- (tweetObj)::timelineTweets
                 elif tweetType.Equals("Retweet") then
-                    printfn "%s 's Timeline \n %s has retweeted : %s" receiver sender tweetObj.Message
+                    printfn "%s's Timeline \n %s has retweeted : %s" receiver sender tweetObj.Message
                     timelineTweets <- (tweetObj)::timelineTweets
                 elif tweetType.Equals("Mention") then
-                    printfn "%s 's Timeline \n %s has mentioned you : %s" receiver sender tweetObj.Message
+                    printfn "%s's Timeline \n %s has mentioned you : %s" receiver sender tweetObj.Message
                     timelineTweets <- (tweetObj)::timelineTweets
 
             return! loop ()
