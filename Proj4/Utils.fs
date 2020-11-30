@@ -13,6 +13,12 @@ let pickRandom (l: List<_>) =
     let r = System.Random()
     l.[r.Next(l.Length)]
 
+let rec remove n lst = 
+    match lst with
+    | h::tl when h = n -> tl
+    | h::tl -> h :: (remove n tl)
+    | []    -> []
+
 type Tweet = { Id: int; Message: string }
 
 type User =

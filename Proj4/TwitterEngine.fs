@@ -24,6 +24,13 @@ let engineBehavior (inbox: Actor<Command>) =
           tid <- random.Next()  
       tid
     
+    let handleLogin (username:string)=
+      activeUsers<- username::activeUsers
+
+    let handleLogout (username:string)=
+      let newActiveUsers = (remove username activeUsers)
+      activeUsers <- newActiveUsers
+
     let extractString (inputStr:string) = 
       let len = inputStr.Length;
       let outputStr = inputStr.[1..len-1]
@@ -61,25 +68,26 @@ let engineBehavior (inbox: Actor<Command>) =
         let mup = { Id = men; TweetList = List.singleton t}
         mentions <- mentions.Add(men, mup)
       
-    let handleTweet sender (tweetStr:string) = 
-      let wordList = tweetStr.Split(" ") |> Array.toList
-      let htag = wordList |> List.filter (fun s -> s.StartsWith('#'))
-      let rawMentionList = wordList |> List.filter (fun s -> s.StartsWith('@'))
+    let handleTweet (sender:string) (tweetStr:string) = 
+      let htag = patternMatch tweetStr hpat
+      let men = patternMatch tweetStr mpat
       let record = (users.TryFind sender).Value
       let tid = genUniqueTID
       let tweet = { Id = tid; Message = tweetStr}
       let mutable mentionList = List.empty
       //Notify mentioned users
-      for username in rawMentionList do
-        let extractUser = extractString username
-        mentionList<-extractUser::mentionList
-        let userActor = getUserRef extractUser
-        userActor <! Update(sender,extractUser,"Mention",tweet)
+      let extractUser = extractString men
+      mentionList<-extractUser::mentionList
+      let extractHashtag = extractString htag
+      // Send mention to user if he is logged in
+      if(List.contains extractUser activeUsers) then
+          let userActor = getUserRef extractUser
+          userActor <! Update(sender,extractUser,"Mention",tweet)
       let update = { record with TweetList = tweet::record.TweetList }
       users <- users.Add(sender, update)
       tweets <- tweets.Add(tid, tweet)
-      // if not (isNull htag) then (insertTag htag tweet)  
-      // if not (isNull men) then (insertMention men tweet)
+      if not (isNull htag) then (insertTag extractHashtag tweet)  
+      if not (isNull men) then (insertMention extractUser tweet)
       let followerList = update.Followers
       for follower in followerList do 
         let followerActor = getUserRef follower
@@ -109,8 +117,10 @@ let engineBehavior (inbox: Actor<Command>) =
       else
         List.empty
 
-    // let handleRequest commandStr:string = 
-    //   if()
+    // let getRandomTweet = 
+    //   let tweetIDList = tweets |> Map.toSeq |> Seq.map fst |> Seq.toList
+    //   let randomTweetID = pickRandom tweetIDList
+    //   randomTweetID
 
     let rec loop () =
         actor {
@@ -118,12 +128,12 @@ let engineBehavior (inbox: Actor<Command>) =
             let sender = inbox.Sender()
             match msg with
             | Register (u) -> handleRegister u
-            | Login (u) -> failwith "Not Implemented"
-            | Logout (u) -> failwith "Not Implemented"
+            | Login (senderActor) -> handleLogin senderActor
+            | Logout (senderActor) -> handleLogout senderActor
             | Subscribe(u, s) -> handleSubscribe u s
-            | TweetCommand(sender, tweetStr) -> handleTweet sender tweetStr
-            | Retweet(sender, tweetID) -> handleRetweet sender tweetID
-            // | GetTweetID (tweetString) -> handleRequest commandStr
+            | TweetCommand(sendingActor, tweetStr) -> handleTweet sendingActor tweetStr
+            | Retweet(sendingActor, tweetID) -> handleRetweet sendingActor tweetID
+            // | GetRandomTweetID (sender) -> getRandomTweet sender
             return! loop ()
         }
 

@@ -15,7 +15,7 @@ let sendRetweet (sender:string) (tweetID:int) =
     let engineActor = getUserRef "engine"
     engineActor <! Retweet (sender,tweetID)
 
-let receiveTweet (sender:string) (inbox: Actor<_>) =
+let clientProcess (sender:string) (inbox: Actor<_>) =
     let rec loop () =
         actor {
             let! msg = inbox.Receive()
@@ -35,7 +35,6 @@ let receiveTweet (sender:string) (inbox: Actor<_>) =
                 elif tweetType.Equals("Mention") then
                     printfn "%s's Timeline \n %s has mentioned you : %s" receiver sender tweetObj.Message
                     timelineTweets <- (tweetObj)::timelineTweets
-
             return! loop ()
         }
     loop ()

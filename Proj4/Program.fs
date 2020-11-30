@@ -22,14 +22,26 @@ let main argv =
     let userList = Seq.toList userLines
     let engineRef = spawn system "engine" engineBehavior
     for user in userList do
-        let userActor = spawn system user (receiveTweet user)
         engineRef <! Register user
-    for user in userList do
+        spawn system user (clientProcess user) |> ignore
+    let mutable looping = true
+    let mutable activeUserList = List.empty
+    let mutable count = 0
+    while looping do
+        let user = pickRandom userList
+        activeUserList<-user::activeUserList
+        count<-count+1
+        if(count=userList.Length/2) then
+            looping<-false
+    for user in activeUserList do
+        engineRef <! Login user
+        
+    for user in activeUserList do
         let mutable followerList = List.empty
         for i = 0 to (userList.Length/2) do
             let follower = pickRandom(userList);
             // Follower shouldnt be the currect username and the follower actor should be present in the system
-            if not (follower.Equals(user)) && not (isNull(getUserRef follower)) then 
+            if not (follower.Equals(user))  then 
                 followerList<- pickRandom(userList)::followerList
         for follower in followerList do
             let followerActor = getUserRef follower
