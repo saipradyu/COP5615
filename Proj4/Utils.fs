@@ -9,7 +9,8 @@ let random = System.Random()
 
 let pickRandom (l: List<_>) =
     let r = System.Random()
-    l.[r.Next(l.Length)]
+    let randomItem = l.[r.Next(l.Length)]
+    randomItem
 
 let rec remove n lst =
     match lst with

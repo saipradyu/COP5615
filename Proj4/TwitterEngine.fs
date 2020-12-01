@@ -94,21 +94,31 @@ let engineBehavior (inbox: Actor<Command>) =
 
     let handleRetweet s tid = 
       let tweet = (tweets.TryFind tid).Value  
+      printfn "GYPSY tweet messge %s tweet ID %i" tweet.Message tweet.Id
       let record = (users.TryFind s).Value
       let update = { record with TweetList = tweet::record.TweetList }
       users <- users.Add(s, update)
       let rmsg = RetweetFeed (s, tweet)
+      
       broadcastResponse update.Followers rmsg
 
     let queryHashtag senderRef hashStr = 
-      let hashtagObj = (hashtags.TryFind hashStr).Value 
-      let userActor = getUserRef senderRef
-      userActor <! HashtagList hashtagObj.TweetList
+      printfn "ENGINE QUERY HASHTAG : %s by actor : %s " hashStr senderRef
+      if (hashtags.TryFind hashStr).IsSome then
+        let hashtagObj = (hashtags.TryFind hashStr).Value 
+        let userActor = getUserRef senderRef
+        printfn "FOUND HASHTAG %s Num of tweets %i" hashStr hashtagObj.TweetList.Length
+        userActor <! HashtagList hashtagObj.TweetList
+      else
+        printfn "Cannot find hashtag : %s" hashStr
     
-    let queryMention senderRef mentionStr = 
-      let mentionObj = (mentions.TryFind mentionStr).Value 
-      let userActor = getUserRef senderRef
-      userActor <! MentionList mentionObj.TweetList
+    let queryMention senderRef mentionStr =
+      if (mentions.TryFind mentionStr).IsSome then 
+        let mentionObj = (mentions.TryFind mentionStr).Value 
+        let userActor = getUserRef senderRef
+        userActor <! MentionList mentionObj.TweetList
+      else
+        printfn "Cannot find mention : %s" mentionStr
 
     let rec loop () =
         actor {

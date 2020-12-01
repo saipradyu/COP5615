@@ -27,6 +27,7 @@ let main argv =
     let mutable looping = true
     let mutable activeUserList = List.empty
     let mutable count = 0
+    let mutable activeTweets = List.empty
     while looping do
         let user = pickRandom userList
         activeUserList<-user::activeUserList
@@ -45,15 +46,43 @@ let main argv =
                 followerList<- pickRandom(userList)::followerList
         for follower in followerList do
             engineRef<! Subscribe (follower,user)
+    
     for i=0 to numOfTweets-1 do
-        let ref = pickRandom(userList);
+        let ref = pickRandom(activeUserList);
         let tweet = pickRandom(tweetList)
         let actorRef = getUserRef ref
+        activeTweets<-tweet::activeTweets
         actorRef <! SendTweet(tweet)
-    for i=0 to numOfTweets-1 do
-        let ref = pickRandom(userList);
-        let actorRef = getUserRef ref
-        actorRef <! SendRetweet
-       
+   
+    // Send retweet
+    // for i=0 to numOfTweets-1 do
+    //     let ref = pickRandom(activeUserList);
+    //     let tweet = pickRandom(tweetList)
+    //     let actorRef = getUserRef ref
+    //     engineRef <! Register ref
+    //     engineRef <! Login ref
+    //     printfn "HELLOO %s" ref
+    //     let actorRefTest = getUserRef ref
+    //     actorRefTest <! SendRetweet
+ 
+    // Query mentions and Hashtags
+    let tweetStr = pickRandom(activeTweets)
+    let mens = patternMatch tweetStr mpat
+    let tags = patternMatch tweetStr hpat
+    
+    let mentionStr = pickRandom mens
+    let tagStr = pickRandom tags
+    
+    let ref = pickRandom(activeUserList);
+    let actorRef = getUserRef ref
+    printfn "TAGS : %A tagStr: %s" tags tagStr
+    printfn "ACTOR : %s" ref
+    actorRef<! GetHashtag tagStr
+
+    let ref2 = pickRandom(activeUserList);
+    let actorRef2 = getUserRef ref2
+    printfn "MENTIONS : %A mentionStr: %s" mens mentionStr
+    printfn "ACTOR MENTION : %s" ref
+    actorRef2<! GetMention mentionStr
     while flag do ignore()
     0
