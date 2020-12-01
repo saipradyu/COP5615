@@ -3,7 +3,10 @@ module TwitterEngine
 open Utils
 open Akka.Actor
 open Akka.FSharp
-open TwitterClient
+open System.Text.RegularExpressions
+
+let hpat = @"\B#\w\w+"
+let mpat = @"\B@\w\w+"
 
 let engineBehavior (inbox: Actor<Command>) =
 
@@ -12,6 +15,14 @@ let engineBehavior (inbox: Actor<Command>) =
     let mutable mentions = Map.empty
     let mutable hashtags = Map.empty
     let mutable activeUsers = List.empty
+
+    let availableUsers l = 
+      Set.intersect (Set.ofList l) (Set.ofList activeUsers) |> Set.toList |> List.map (getUserRef)    
+
+    let broadcastResponse l m = 
+      let refs = availableUsers l
+      for ref in refs do 
+        ref <! m    
 
     let genUniqueTID = 
       let ids = tweets |> Map.toSeq |> Seq.map fst
@@ -24,11 +35,38 @@ let engineBehavior (inbox: Actor<Command>) =
           tid <- random.Next()  
       tid
 
+    let insertTags tags t = 
+      for tag in tags do
+        if (hashtags.TryFind tag).IsSome then
+          let hrec = (hashtags.TryFind tag).Value
+          let hup = { Id = tag; TweetList = t::hrec.TweetList }
+          hashtags <- hashtags.Add(tag, hup)
+        else 
+          let hup = { Id = tag; TweetList = List.singleton t }
+          hashtags <- hashtags.Add(tag, hup)
+
+    let insertMentions mens t = 
+      for men in mens do
+        if (mentions.TryFind men).IsSome then
+          let mrec = (mentions.TryFind men).Value
+          let mup = { Id = men; TweetList = t::mrec.TweetList }
+          mentions <- mentions.Add(men, mup)
+        else 
+          let mup = { Id = men; TweetList = List.singleton t }
+          mentions <- mentions.Add(men, mup)            
+
+    let handleLogin u =
+      activeUsers<- u::activeUsers
+
+    let handleLogout u =
+      let newActiveUsers = (remove u activeUsers)
+      activeUsers <- newActiveUsers
+      
     let handleRegister u =
       if users.ContainsKey u then
         printfn "%s is already registered" u
       else 
-        let record = { Id = u; Followers = List.empty; Tweets = List.empty }
+        let record = { Id = u; Followers = List.empty; TweetList = List.empty }
         users <- users.Add(u, record)
         printfn "%s has been registered" u
 
@@ -36,70 +74,42 @@ let engineBehavior (inbox: Actor<Command>) =
       let record = (users.TryFind s).Value
       let update = { record with Followers = u::record.Followers }
       users <- users.Add(s, update)
-      printfn "%s has subscribed to %s's tweets" u s
+      printfn "%s has subscribed to %s's Tweets" u s
 
-    let insertTag tag t = 
-      if (hashtags.TryFind tag).IsSome then
-        let hrec = (hashtags.TryFind tag).Value
-        let hup = { Id = tag; Tweets = t::hrec.Tweets}
-        hashtags <- hashtags.Add(tag, hup)
-      else 
-        let hup = { Id = tag; Tweets = List.singleton t}
-        hashtags <- hashtags.Add(tag, hup)
-
-    let insertMention men t = 
-      if (mentions.TryFind men).IsSome then
-        let mrec = (hashtags.TryFind men).Value
-        let mup = { Id = men; Tweets = t::mrec.Tweets}
-        mentions <- mentions.Add(men, mup)
-      else 
-        let mup = { Id = men; Tweets = List.singleton t}
-        mentions <- mentions.Add(men, mup)
-      
-    let handleTweet u m = 
-      let htag = patternMatch m hpat
-      let men = patternMatch m mpat
-      let record = (users.TryFind u).Value
+    let handleTweet s m = 
+      let record = (users.TryFind s).Value
       let tid = genUniqueTID
       let tweet = { Id = tid; Message = m}
-      let update = { record with Tweets = tweet::record.Tweets }
-      users <- users.Add(u, update)
+      let mens = patternMatch m mpat
+      let tags = patternMatch m hpat
+      insertTags tags tweet
+      insertMentions mens tweet
+      let update = { record with TweetList = tweet::record.TweetList }
+      users <- users.Add(s, update)
       tweets <- tweets.Add(tid, tweet)
-      if not (isNull htag) then (insertTag htag tweet)  
-      if not (isNull men) then (insertMention men tweet)  
+      let tmsg = TweetFeed (s, tweet)
+      broadcastResponse update.Followers tmsg
+      let mmsg = MentionFeed (s, tweet)
+      broadcastResponse update.Followers mmsg
 
-    let handleRetweet u i = 
-      let tweet = (tweets.TryFind i).Value  
-      let record = (users.TryFind u).Value
-      let update = { record with Tweets = tweet::record.Tweets }
-      users <- users.Add(u, update)      
-
-    let handleGetMention m = 
-      if (mentions.TryFind m).IsSome then
-        let mrec = (hashtags.TryFind m).Value
-        mrec.Tweets
-      else
-        List.empty  
-
-    let handleGetHashtag h = 
-      if (hashtags.TryFind h).IsSome then
-        let hrec = (hashtags.TryFind h).Value
-        hrec.Tweets
-      else
-        List.empty  
+    let handleRetweet s tid = 
+      let tweet = (tweets.TryFind tid).Value  
+      let record = (users.TryFind s).Value
+      let update = { record with TweetList = tweet::record.TweetList }
+      users <- users.Add(s, update)
+      let rmsg = RetweetFeed (s, tweet)
+      broadcastResponse update.Followers rmsg
 
     let rec loop () =
         actor {
             let! msg = inbox.Receive()
-            let sender = inbox.Sender()
-
             match msg with
             | Register (u) -> handleRegister u
-            | Login (u) -> failwith "Not Implemented"
-            | Logout (u) -> failwith "Not Implemented"
+            | Login (u) -> handleLogin u
+            | Logout (u) -> handleLogout u
             | Subscribe(u, s) -> handleSubscribe u s
-            | Tweet(u, m) -> failwith "Not Implemented"
-            | Retweet(u, i) -> failwith "Not Implemented"
+            | CmdTweet(s, m) -> handleTweet s m
+            | CmdRetweet(s, tid) -> handleRetweet s tid
             return! loop ()
         }
 
