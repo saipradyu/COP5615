@@ -3,7 +3,10 @@ module TwitterEngine
 open Utils
 open Akka.Actor
 open Akka.FSharp
-open TwitterClient
+open System.Text.RegularExpressions
+
+let hpat = @"\B#\w\w+"
+let mpat = @"\B@\w\w+"
 
 let engineBehavior (inbox: Actor<Command>) =
 
@@ -12,6 +15,14 @@ let engineBehavior (inbox: Actor<Command>) =
     let mutable mentions = Map.empty
     let mutable hashtags = Map.empty
     let mutable activeUsers = List.empty
+
+    let availableUsers l = 
+      Set.intersect (Set.ofList l) (Set.ofList activeUsers) |> Set.toList |> List.map (getUserRef)    
+
+    let broadcastResponse l m = 
+      let refs = availableUsers l
+      for ref in refs do 
+        ref <! m    
 
     let genUniqueTID = 
       let ids = tweets |> Map.toSeq |> Seq.map fst
@@ -23,19 +34,34 @@ let engineBehavior (inbox: Actor<Command>) =
         else 
           tid <- random.Next()  
       tid
-    
-    let handleLogin (username:string)=
-      activeUsers<- username::activeUsers
 
-    let handleLogout (username:string)=
-      let newActiveUsers = (remove username activeUsers)
+    let insertTags tags t = 
+      for tag in tags do
+        if (hashtags.TryFind tag).IsSome then
+          let hrec = (hashtags.TryFind tag).Value
+          let hup = { Id = tag; TweetList = t::hrec.TweetList }
+          hashtags <- hashtags.Add(tag, hup)
+        else 
+          let hup = { Id = tag; TweetList = List.singleton t }
+          hashtags <- hashtags.Add(tag, hup)
+
+    let insertMentions mens t = 
+      for men in mens do
+        if (mentions.TryFind men).IsSome then
+          let mrec = (mentions.TryFind men).Value
+          let mup = { Id = men; TweetList = t::mrec.TweetList }
+          mentions <- mentions.Add(men, mup)
+        else 
+          let mup = { Id = men; TweetList = List.singleton t }
+          mentions <- mentions.Add(men, mup)            
+
+    let handleLogin u =
+      activeUsers<- u::activeUsers
+
+    let handleLogout u =
+      let newActiveUsers = (remove u activeUsers)
       activeUsers <- newActiveUsers
-
-    let extractString (inputStr:string) = 
-      let len = inputStr.Length;
-      let outputStr = inputStr.[1..len-1]
-      outputStr
-
+      
     let handleRegister u =
       if users.ContainsKey u then
         printfn "%s is already registered" u
@@ -50,90 +76,52 @@ let engineBehavior (inbox: Actor<Command>) =
       users <- users.Add(s, update)
       printfn "%s has subscribed to %s's Tweets" u s
 
-    let insertTag tag t = 
-      if (hashtags.TryFind tag).IsSome then
-        let hrec = (hashtags.TryFind tag).Value
-        let hup = { Id = tag; TweetList = t::hrec.TweetList}
-        hashtags <- hashtags.Add(tag, hup)
-      else 
-        let hup = { Id = tag; TweetList = List.singleton t}
-        hashtags <- hashtags.Add(tag, hup)
-
-    let insertMention men t = 
-      if (mentions.TryFind men).IsSome then
-        let mrec = (hashtags.TryFind men).Value
-        let mup = { Id = men; TweetList = t::mrec.TweetList}
-        mentions <- mentions.Add(men, mup)
-      else 
-        let mup = { Id = men; TweetList = List.singleton t}
-        mentions <- mentions.Add(men, mup)
-      
-    let handleTweet (sender:string) (tweetStr:string) = 
-      let htag = patternMatch tweetStr hpat
-      let men = patternMatch tweetStr mpat
-      let record = (users.TryFind sender).Value
+    let handleTweet s m = 
+      let record = (users.TryFind s).Value
       let tid = genUniqueTID
-      let tweet = { Id = tid; Message = tweetStr}
-      let mutable mentionList = List.empty
-      //Notify mentioned users
-      let extractUser = extractString men
-      mentionList<-extractUser::mentionList
-      let extractHashtag = extractString htag
-      // Send mention to user if he is logged in
-      if(List.contains extractUser activeUsers) then
-          let userActor = getUserRef extractUser
-          userActor <! Update(sender,extractUser,"Mention",tweet)
+      let tweet = { Id = tid; Message = m}
+      let mens = patternMatch m mpat
+      let tags = patternMatch m hpat
+      insertTags tags tweet
+      insertMentions mens tweet
       let update = { record with TweetList = tweet::record.TweetList }
-      users <- users.Add(sender, update)
+      users <- users.Add(s, update)
       tweets <- tweets.Add(tid, tweet)
-      if not (isNull htag) then (insertTag extractHashtag tweet)  
-      if not (isNull men) then (insertMention extractUser tweet)
-      let followerList = update.Followers
-      for follower in followerList do 
-        let followerActor = getUserRef follower
-        followerActor <! Update (sender,follower,"Tweet",tweet)
+      let tmsg = TweetFeed (s, tweet)
+      broadcastResponse update.Followers tmsg
+      let mmsg = MentionFeed (s, tweet)
+      broadcastResponse update.Followers mmsg
 
-    let handleRetweet sender tweetID = 
-      let tweet = (tweets.TryFind tweetID).Value  
-      let record = (users.TryFind sender).Value
+    let handleRetweet s tid = 
+      let tweet = (tweets.TryFind tid).Value  
+      let record = (users.TryFind s).Value
       let update = { record with TweetList = tweet::record.TweetList }
-      users <- users.Add(sender, update)
-      let followerList = update.Followers
-      for follower in followerList do 
-        let followerActor = getUserRef follower
-        followerActor <! Update (sender,follower,"Retweet",tweet)
+      users <- users.Add(s, update)
+      let rmsg = RetweetFeed (s, tweet)
+      broadcastResponse update.Followers rmsg
 
-    let handleGetMention m = 
-      if (mentions.TryFind m).IsSome then
-        let mrec = (hashtags.TryFind m).Value
-        mrec.TweetList
-      else
-        List.empty  
-
-    let handleGetHashtag h = 
-      if (hashtags.TryFind h).IsSome then
-        let hrec = (hashtags.TryFind h).Value
-        hrec.TweetList
-      else
-        List.empty
-
-    // let getRandomTweet = 
-    //   let tweetIDList = tweets |> Map.toSeq |> Seq.map fst |> Seq.toList
-    //   let randomTweetID = pickRandom tweetIDList
-    //   randomTweetID
+    let queryHashtag senderRef hashStr = 
+      let hashtagObj = (hashtags.TryFind hashStr).Value 
+      let userActor = getUserRef senderRef
+      userActor <! HashtagList hashtagObj.TweetList
+    
+    let queryMention senderRef mentionStr = 
+      let mentionObj = (mentions.TryFind mentionStr).Value 
+      let userActor = getUserRef senderRef
+      userActor <! MentionList mentionObj.TweetList
 
     let rec loop () =
         actor {
             let! msg = inbox.Receive()
-            let sender = inbox.Sender()
             match msg with
             | Register (u) -> handleRegister u
-            | Login (senderActor) -> handleLogin senderActor
-            | Logout (senderActor) -> handleLogout senderActor
+            | Login (u) -> handleLogin u
+            | Logout (u) -> handleLogout u
             | Subscribe(u, s) -> handleSubscribe u s
-            | TweetCommand(sendingActor, tweetStr) -> handleTweet sendingActor tweetStr
-            | Retweet(sendingActor, tweetID) -> handleRetweet sendingActor tweetID
-            // | GetRandomTweetID (sender) -> getRandomTweet sender
+            | CmdTweet(s, m) -> handleTweet s m
+            | CmdRetweet(s, tid) -> handleRetweet s tid
+            | QueryHashtag (senderRef, hashStr) -> queryHashtag senderRef hashStr
+            | QueryMention(senderRef,mentionStr) -> queryMention senderRef mentionStr
             return! loop ()
         }
 

@@ -23,7 +23,7 @@ let main argv =
     let engineRef = spawn system "engine" engineBehavior
     for user in userList do
         engineRef <! Register user
-        spawn system user (clientProcess user) |> ignore
+        spawn system user (clientBehavior user) |> ignore
     let mutable looping = true
     let mutable activeUserList = List.empty
     let mutable count = 0
@@ -44,20 +44,16 @@ let main argv =
             if not (follower.Equals(user))  then 
                 followerList<- pickRandom(userList)::followerList
         for follower in followerList do
-            let followerActor = getUserRef follower
             engineRef<! Subscribe (follower,user)
     for i=0 to numOfTweets-1 do
-        let userRef = pickRandom(userList);
+        let ref = pickRandom(userList);
         let tweet = pickRandom(tweetList)
-        let userActor = getUserRef userRef
-        sendTweet userRef  tweet
-    // for i=0 to numOfTweets-1 do
-    //     let userRef = pickRandom(userList);
-    //     let tweet = pickRandom(tweetList)
-    //     let userActor = getUserRef userRef
-    //     sendTweet userRef tweet
-        // engineRef <! TweetCommand (userRef,tweet)
-    
-    // engineRef <! Register("user1")
+        let actorRef = getUserRef ref
+        actorRef <! SendTweet(tweet)
+    for i=0 to numOfTweets-1 do
+        let ref = pickRandom(userList);
+        let actorRef = getUserRef ref
+        actorRef <! SendRetweet
+       
     while flag do ignore()
     0

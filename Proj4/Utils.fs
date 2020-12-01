@@ -6,18 +6,16 @@ open System.Text.RegularExpressions
 
 let system = ActorSystem.Create("FSharp")
 let random = System.Random()
-let hpat = @"\B#\w\w+"
-let mpat = @"\B@\w\w+"
 
 let pickRandom (l: List<_>) =
     let r = System.Random()
     l.[r.Next(l.Length)]
 
-let rec remove n lst = 
+let rec remove n lst =
     match lst with
-    | h::tl when h = n -> tl
-    | h::tl -> h :: (remove n tl)
-    | []    -> []
+    | h :: tl when h = n -> tl
+    | h :: tl -> h :: (remove n tl)
+    | [] -> []
 
 type Tweet = { Id: int; Message: string }
 
@@ -30,23 +28,34 @@ type Mention = { Id: string; TweetList: List<Tweet> }
 
 type HashTag = { Id: string; TweetList: List<Tweet> }
 
-type Command = 
-  | Register of string
-  | Login of string
-  | Logout of string
-  | Subscribe of string * string
-  | TweetCommand of string  * string 
-  | Retweet of string * int
-  
+type Command =
+    | Register of string
+    | Login of string
+    | Logout of string
+    | Subscribe of string * string
+    | CmdTweet of string * string
+    | CmdRetweet of string * int
+    | QueryHashtag of string * string
+    | QueryMention of string * string
+
 type Response =
-  | Feed of Tweet
-  | Mention of Tweet
-  | Update of string * string * string * Tweet  // sender, type(tweet, RT, mention), tweet
-  //| Hashtag of Tweet
+    | TweetFeed of string * Tweet
+    | RetweetFeed of string * Tweet
+    | MentionFeed of string * Tweet
+    | SendTweet of string
+    | SendRetweet
+    | GetHashtag of string
+    | HashtagList of Tweet List
+    | GetMention of string
+    | MentionList of Tweet List
+
 
 let getUserRef u =
     let actorPath = @"akka://FSharp/user/" + string u
     select actorPath system
 
+let sanitize l =
+    List.map ((string) >> (fun x -> x.Substring(1))) l
+
 let patternMatch m p = 
-  Regex.Match(m, p) |> string
+    Regex.Matches(m, p) |> Seq.toList |> sanitize
