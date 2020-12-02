@@ -34,7 +34,6 @@ let engineBehavior (inbox: Actor<Command>) =
           tid <- random.Next()  
       tid
 
-
     let insertTags tags t = 
       for tag in tags do
         if (hashtags.TryFind tag).IsSome then
@@ -111,12 +110,10 @@ let engineBehavior (inbox: Actor<Command>) =
       broadcastResponse update.Followers rmsg
     
     let queryHashtag senderRef hashStr = 
-      printfn "ENGINE QUERY HASHTAG : %s by actor : %s " hashStr senderRef
       if (hashtags.TryFind hashStr).IsSome then
         let hashtagObj = (hashtags.TryFind hashStr).Value 
         let userActor = getUserRef senderRef
-        printfn "FOUND HASHTAG %s Num of tweets %i" hashStr hashtagObj.TweetList.Length
-        userActor <! HashtagList hashtagObj.TweetList
+        userActor <! HashtagList(hashStr,hashtagObj.TweetList)
       else
         printfn "Cannot find hashtag : %s" hashStr
     
@@ -124,15 +121,15 @@ let engineBehavior (inbox: Actor<Command>) =
       if (mentions.TryFind mentionStr).IsSome then 
         let mentionObj = (mentions.TryFind mentionStr).Value 
         let userActor = getUserRef senderRef
-        userActor <! MentionList mentionObj.TweetList
+        userActor <! MentionList(mentionStr,mentionObj.TweetList)
       else
         printfn "Cannot find mention : %s" mentionStr
     
         
-    let debugTweetTable =
-      printfn "TweetTable Size : %i " tweets.Count
-      for tweet in tweets do
-        printfn "TweetKEY : %i | TweetID : %i | Message : %s " tweet.Key tweet.Value.Id tweet.Value.Message
+    // let debugTweetTable =
+    //   printfn "TweetTable Size : %i " tweets.Count
+    //   for tweet in tweets do
+    //     printfn "TweetKEY : %i | TweetID : %i | Message : %s " tweet.Key tweet.Value.Id tweet.Value.Message
 
     let rec loop () =
         actor {
@@ -146,7 +143,8 @@ let engineBehavior (inbox: Actor<Command>) =
             | CmdRetweet(s, tid) -> handleRetweet s tid
             | QueryHashtag (senderRef, hashStr) -> queryHashtag senderRef hashStr
             | QueryMention(senderRef,mentionStr) -> queryMention senderRef mentionStr
-            | DebugTweetTable -> debugTweetTable
+            // | DebugTweetTable -> debugTweetTable
+            | DebugTweetTable -> "debugTweetTable"
             | DebugMentionTable -> debugMentionTable
             | DebugHashtagTable -> debugHashtagTable
             return! loop ()

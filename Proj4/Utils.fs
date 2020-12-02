@@ -47,9 +47,9 @@ type Response =
     | SendTweet of string
     | SendRetweet
     | GetHashtag of string
-    | HashtagList of Tweet List
+    | HashtagList of string * Tweet List
     | GetMention of string
-    | MentionList of Tweet List
+    | MentionList of string * Tweet List
     
 let getUserRef u =
     let actorPath = @"akka://FSharp/user/" + string u

@@ -48,13 +48,12 @@ let main argv =
         for follower in followerList do
             let followerActor = getUserRef follower
             engineRef<! Subscribe (follower,user)
-    for i=0 to numOfTweets-1 do
+    for i=0 to (numOfUsers*numOfTweets-1) do
         let ref = pickRandom(userList);
         let tweet = pickRandom(tweetList)
         let actorRef = getUserRef ref
         activeTweets<-tweet::activeTweets
         actorRef <! SendTweet(tweet)
-
 
     // engineRef <! DebugTweetTable
     // Send retweet
@@ -70,18 +69,17 @@ let main argv =
  
     // Query mentions and Hashtags
     let tweetStr = pickRandom(activeTweets)
-    let mens = patternMatch tweetStr mpat
     let tags = patternMatch tweetStr hpat
-    
-    let mentionStr = pickRandom mens
     let tagStr = pickRandom tags
-    
     let ref = pickRandom(activeUserList);
     let actorRef = getUserRef ref
     actorRef<! GetHashtag tagStr
     // printfn "HASHTAG TABLE : %s" tagStr
     // engineRef<! DebugHashtagTable
 
+    let tweetStr2 = pickRandom(activeTweets)
+    let mens = patternMatch tweetStr2 mpat
+    let mentionStr = pickRandom mens
     let ref2 = pickRandom(activeUserList);
     let actorRef2 = getUserRef ref2
     actorRef2<! GetMention mentionStr
