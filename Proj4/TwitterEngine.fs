@@ -24,8 +24,7 @@ let engineBehavior (inbox: Actor<Command>) =
       for ref in refs do 
         ref <! m    
 
-    let genUniqueTID = 
-      let ids = tweets |> Map.toSeq |> Seq.map fst
+    let genUniqueTID ids = 
       let mutable looping = true
       let mutable tid = random.Next()
       while looping do
@@ -78,7 +77,8 @@ let engineBehavior (inbox: Actor<Command>) =
 
     let handleTweet s m = 
       let record = (users.TryFind s).Value
-      let tid = genUniqueTID
+      let ids = tweets |> Map.toSeq |> Seq.map fst      
+      let tid = genUniqueTID ids
       let tweet = { Id = tid; Message = m}
       let mens = patternMatch m mpat
       let tags = patternMatch m hpat
@@ -90,7 +90,7 @@ let engineBehavior (inbox: Actor<Command>) =
       let tmsg = TweetFeed (s, tweet)
       broadcastResponse update.Followers tmsg
       let mmsg = MentionFeed (s, tweet)
-      broadcastResponse update.Followers mmsg
+      broadcastResponse mens mmsg
 
     let handleRetweet s tid = 
       let tweet = (tweets.TryFind tid).Value  
