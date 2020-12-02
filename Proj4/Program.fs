@@ -44,11 +44,11 @@ let main argv =
             let follower = pickRandom(userList);
             // Follower shouldnt be the currect username and the follower actor should be present in the system
             if not (follower.Equals(user))  then 
-                followerList<- pickRandom(userList)::followerList
+                followerList<- follower::followerList
         for follower in followerList do
-            let followerActor = getUserRef follower
             engineRef<! Subscribe (follower,user)
-    for i=0 to (numOfUsers*numOfTweets-1) do
+    
+    for i=0 to (numOfTweets-1) do
         let ref = pickRandom(userList);
         let tweet = pickRandom(tweetList)
         let actorRef = getUserRef ref
@@ -60,10 +60,10 @@ let main argv =
     // for i=0 to numOfTweets-1 do
     //     let ref = pickRandom(activeUserList);
     //     let tweet = pickRandom(tweetList)
-    //     let actorRef = getUserRef ref
-    //     engineRef <! Register ref
-    //     engineRef <! Login ref
-    //     printfn "HELLOO %s" ref
+    //     // let actorRef = getUserRef ref
+    //     // engineRef <! Register ref
+    //     // engineRef <! Login ref
+    //     printfn "[MAIN] RETWEET : %s" ref
     //     let actorRefTest = getUserRef ref
     //     actorRefTest <! SendRetweet
  

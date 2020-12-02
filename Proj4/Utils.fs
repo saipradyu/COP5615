@@ -7,6 +7,7 @@ open System.Text.RegularExpressions
 let system = ActorSystem.Create("FSharp")
 let random = System.Random()
 type Tweet = { Id: int; Message: string }
+
 let pickRandom (l: List<_>) =
     let r = System.Random()
     let randomItem = l.[r.Next(l.Length)]
