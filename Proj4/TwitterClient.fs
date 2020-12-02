@@ -35,7 +35,7 @@ let clientBehavior ref (inbox: Actor<Response>) =
             | SendTweet (m) -> engineRef <! CmdTweet(ref, m)
             | SendRetweet -> 
                 let randomTweet = pickRandom timelineTweets
-                printfn "%s TIMELINE RANDOM TWEET : %s and tweet ID %i" ref randomTweet.Message randomTweet.Id
+                printfn "%s TIMELINE RANDOM TWEET : %s  and tweet ID %i" ref randomTweet.Message randomTweet.Id
                 engineRef <! CmdRetweet (ref,randomTweet.Id)
             | GetHashtag (hashtagStr) ->
                 printfn "CLIENT Query hashtag : %s" hashtagStr

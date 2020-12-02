@@ -82,7 +82,7 @@ let engineBehavior (inbox: Actor<Command>) =
       let record = (users.TryFind s).Value
       let update = { record with Followers = u::record.Followers }
       users <- users.Add(s, update)
-      printfn "%s has subscribed to %s's Tweets" u s
+      printfn "%s has subscribed to %s's Tweets " u s
 
     let handleTweet s m = 
       let record = (users.TryFind s).Value
