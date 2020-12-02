@@ -42,9 +42,9 @@ let clientBehavior ref (inbox: Actor<Response>) =
                 printfn "%s TIMELINE RANDOM TWEET : %s  and tweet ID %i" ref randomTweet.Message randomTweet.Id
                 engineRef <! CmdRetweet (ref,randomTweet.Id)
             | GetHashtag (hashtagStr) ->
-                engineRef <! QueryHashtag (ref,hashtagStr)
+                engineRef <! QueryHashtag (hashtagStr)
             | GetMention (mentionStr) ->
-                engineRef <! QueryMention (ref, mentionStr)
+                engineRef <! QueryMention (mentionStr)
 
             return! loop ()
         }

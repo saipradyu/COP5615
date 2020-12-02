@@ -4,9 +4,10 @@ open Akka.Actor
 open Akka.FSharp
 open System.Text.RegularExpressions
 
+let hpat = @"\B#\w\w+"
+let mpat = @"\B@\w\w+"
 let system = ActorSystem.Create("FSharp")
 let random = System.Random()
-type Tweet = { Id: int; Message: string }
 
 let pickRandom (l: List<_>) =
     let r = System.Random()
@@ -18,6 +19,8 @@ let rec remove n lst =
     | h :: tl when h = n -> tl
     | h :: tl -> h :: (remove n tl)
     | [] -> []
+
+type Tweet = { Id: int; Message: string }
 
 type User =
     { Id: string
@@ -35,11 +38,8 @@ type Command =
     | Subscribe of string * string
     | CmdTweet of string * string
     | CmdRetweet of string * int
-    | QueryHashtag of string * string
-    | QueryMention of string * string
-    | DebugTweetTable
-    | DebugMentionTable
-    | DebugHashtagTable
+    | QueryHashtag of string
+    | QueryMention of string
 
 type Response =
     | TweetFeed of string * Tweet

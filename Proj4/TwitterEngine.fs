@@ -1,12 +1,7 @@
 module TwitterEngine
 
 open Utils
-open Akka.Actor
 open Akka.FSharp
-open System.Text.RegularExpressions
-
-let hpat = @"\B#\w\w+"
-let mpat = @"\B@\w\w+"
 
 let engineBehavior (inbox: Actor<Command>) =
 
@@ -15,12 +10,19 @@ let engineBehavior (inbox: Actor<Command>) =
     let mutable mentions = Map.empty
     let mutable hashtags = Map.empty
     let mutable activeUsers = List.empty
+
+    let generateConnected (l: string list) = 
+      let len = l.Length |> float
+      let picklen = (len * 0.75) |> int
+      l |> List.sortBy (fun _ -> random.Next()) |> List.take picklen
     
-    let availableUsers l = 
-      Set.intersect (Set.ofList l) (Set.ofList activeUsers) |> Set.toList |> List.map (getUserRef)    
+    let broadcastReady l = 
+      let uids = users |> Map.toSeq |> Seq.map fst |> Seq.toList
+      let connected = generateConnected uids
+      Set.intersect (Set.ofList l) (Set.ofList connected) |> Set.toList |> List.map (getUserRef)    
 
     let broadcastResponse l m = 
-      let refs = availableUsers l
+      let refs = broadcastReady l
       for ref in refs do 
         ref <! m    
 
@@ -54,14 +56,6 @@ let engineBehavior (inbox: Actor<Command>) =
           let mup = { Id = men; TweetList = List.singleton t }
           mentions <- mentions.Add(men, mup)            
 
-    let debugMentionTable =
-      for mention in mentions do
-        printfn "mentionKEY : %s | MentionID : %s | TweetList : %A " mention.Key mention.Value.Id mention.Value.TweetList
-    
-    let debugHashtagTable =
-      for ht in hashtags do
-        printfn "hashtagKEY : %s | TweetID : %s | Message : %A " ht.Key ht.Value.Id ht.Value.TweetList
-    
     let handleLogin u =
       activeUsers<- u::activeUsers
 
@@ -100,7 +94,6 @@ let engineBehavior (inbox: Actor<Command>) =
       let mmsg = MentionFeed (s, tweet)
       broadcastResponse update.Followers mmsg
      
-
     let handleRetweet s tid = 
       let tweet = (tweets.TryFind tid).Value  
       let record = (users.TryFind s).Value
@@ -124,16 +117,11 @@ let engineBehavior (inbox: Actor<Command>) =
         userActor <! MentionList(mentionStr,mentionObj.TweetList)
       else
         printfn "Cannot find mention : %s" mentionStr
-    
-        
-    // let debugTweetTable =
-    //   printfn "TweetTable Size : %i " tweets.Count
-    //   for tweet in tweets do
-    //     printfn "TweetKEY : %i | TweetID : %i | Message : %s " tweet.Key tweet.Value.Id tweet.Value.Message
 
     let rec loop () =
         actor {
             let! msg = inbox.Receive()
+            let senderRef = inbox.Sender()
             match msg with
             | Register (u) -> handleRegister u
             | Login (u) -> handleLogin u
@@ -141,12 +129,8 @@ let engineBehavior (inbox: Actor<Command>) =
             | Subscribe(u, s) -> handleSubscribe u s
             | CmdTweet(s, m) -> handleTweet s m
             | CmdRetweet(s, tid) -> handleRetweet s tid
-            | QueryHashtag (senderRef, hashStr) -> queryHashtag senderRef hashStr
-            | QueryMention(senderRef,mentionStr) -> queryMention senderRef mentionStr
-            // | DebugTweetTable -> debugTweetTable
-            | DebugTweetTable -> "debugTweetTable"
-            | DebugMentionTable -> debugMentionTable
-            | DebugHashtagTable -> debugHashtagTable
+            | QueryHashtag (hashStr) -> queryHashtag senderRef hashStr
+            | QueryMention(mentionStr) -> queryMention senderRef mentionStr
             return! loop ()
         }
 
