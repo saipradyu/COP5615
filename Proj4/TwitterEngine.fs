@@ -15,7 +15,7 @@ let engineBehavior (inbox: Actor<Command>) =
     let mutable mentions = Map.empty
     let mutable hashtags = Map.empty
     let mutable activeUsers = List.empty
-
+    
     let availableUsers l = 
       Set.intersect (Set.ofList l) (Set.ofList activeUsers) |> Set.toList |> List.map (getUserRef)    
 
@@ -33,6 +33,7 @@ let engineBehavior (inbox: Actor<Command>) =
         else 
           tid <- random.Next()  
       tid
+
 
     let insertTags tags t = 
       for tag in tags do
@@ -54,6 +55,14 @@ let engineBehavior (inbox: Actor<Command>) =
           let mup = { Id = men; TweetList = List.singleton t }
           mentions <- mentions.Add(men, mup)            
 
+    let debugMentionTable =
+      for mention in mentions do
+        printfn "mentionKEY : %s | MentionID : %s | TweetList : %A " mention.Key mention.Value.Id mention.Value.TweetList
+    
+    let debugHashtagTable =
+      for ht in hashtags do
+        printfn "hashtagKEY : %s | TweetID : %s | Message : %A " ht.Key ht.Value.Id ht.Value.TweetList
+    
     let handleLogin u =
       activeUsers<- u::activeUsers
 
@@ -77,7 +86,7 @@ let engineBehavior (inbox: Actor<Command>) =
 
     let handleTweet s m = 
       let record = (users.TryFind s).Value
-      let ids = tweets |> Map.toSeq |> Seq.map fst      
+      let ids = tweets |> Map.toSeq |> Seq.map fst 
       let tid = genUniqueTID ids
       let tweet = { Id = tid; Message = m}
       let mens = patternMatch m mpat
@@ -90,18 +99,17 @@ let engineBehavior (inbox: Actor<Command>) =
       let tmsg = TweetFeed (s, tweet)
       broadcastResponse update.Followers tmsg
       let mmsg = MentionFeed (s, tweet)
-      broadcastResponse mens mmsg
+      broadcastResponse update.Followers mmsg
+     
 
     let handleRetweet s tid = 
       let tweet = (tweets.TryFind tid).Value  
-      printfn "GYPSY tweet messge %s tweet ID %i" tweet.Message tweet.Id
       let record = (users.TryFind s).Value
       let update = { record with TweetList = tweet::record.TweetList }
       users <- users.Add(s, update)
       let rmsg = RetweetFeed (s, tweet)
-      
       broadcastResponse update.Followers rmsg
-
+    
     let queryHashtag senderRef hashStr = 
       printfn "ENGINE QUERY HASHTAG : %s by actor : %s " hashStr senderRef
       if (hashtags.TryFind hashStr).IsSome then
@@ -119,6 +127,12 @@ let engineBehavior (inbox: Actor<Command>) =
         userActor <! MentionList mentionObj.TweetList
       else
         printfn "Cannot find mention : %s" mentionStr
+    
+        
+    let debugTweetTable =
+      printfn "TweetTable Size : %i " tweets.Count
+      for tweet in tweets do
+        printfn "TweetKEY : %i | TweetID : %i | Message : %s " tweet.Key tweet.Value.Id tweet.Value.Message
 
     let rec loop () =
         actor {
@@ -132,6 +146,9 @@ let engineBehavior (inbox: Actor<Command>) =
             | CmdRetweet(s, tid) -> handleRetweet s tid
             | QueryHashtag (senderRef, hashStr) -> queryHashtag senderRef hashStr
             | QueryMention(senderRef,mentionStr) -> queryMention senderRef mentionStr
+            | DebugTweetTable -> debugTweetTable
+            | DebugMentionTable -> debugMentionTable
+            | DebugHashtagTable -> debugHashtagTable
             return! loop ()
         }
 

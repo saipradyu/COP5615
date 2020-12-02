@@ -3,7 +3,6 @@ module TwitterClient
 open Utils
 open Akka.FSharp
 open System.Threading
-
 let mutable timelineTweets = List.empty
 
 let clientBehavior ref (inbox: Actor<Response>) =
@@ -43,8 +42,8 @@ let clientBehavior ref (inbox: Actor<Response>) =
                 engineRef <! QueryHashtag (ref,hashtagStr)
             | GetMention (mentionStr) ->
                 engineRef <! QueryMention (ref, mentionStr)
+
             return! loop ()
-            
         }
 
     loop ()

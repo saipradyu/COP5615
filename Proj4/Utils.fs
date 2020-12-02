@@ -38,6 +38,9 @@ type Command =
     | CmdRetweet of string * int
     | QueryHashtag of string * string
     | QueryMention of string * string
+    | DebugTweetTable
+    | DebugMentionTable
+    | DebugHashtagTable
 
 type Response =
     | TweetFeed of string * Tweet
@@ -49,8 +52,7 @@ type Response =
     | HashtagList of Tweet List
     | GetMention of string
     | MentionList of Tweet List
-
-
+    
 let getUserRef u =
     let actorPath = @"akka://FSharp/user/" + string u
     select actorPath system
@@ -60,3 +62,4 @@ let sanitize l =
 
 let patternMatch m p = 
     Regex.Matches(m, p) |> Seq.toList |> sanitize
+

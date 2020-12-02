@@ -4,6 +4,7 @@ open Akka.FSharp
 open TwitterEngine
 open TwitterClient
 open System.IO
+open System.Threading
 
 [<EntryPoint>]
 let main argv =
@@ -45,15 +46,16 @@ let main argv =
             if not (follower.Equals(user))  then 
                 followerList<- pickRandom(userList)::followerList
         for follower in followerList do
+            let followerActor = getUserRef follower
             engineRef<! Subscribe (follower,user)
-    
     for i=0 to numOfTweets-1 do
-        let ref = pickRandom(activeUserList);
+        let ref = pickRandom(userList);
         let tweet = pickRandom(tweetList)
         let actorRef = getUserRef ref
         activeTweets<-tweet::activeTweets
         actorRef <! SendTweet(tweet)
-   
+
+    // engineRef<! DebugTweetTable
     // Send retweet
     // for i=0 to numOfTweets-1 do
     //     let ref = pickRandom(activeUserList);
@@ -75,14 +77,15 @@ let main argv =
     
     let ref = pickRandom(activeUserList);
     let actorRef = getUserRef ref
-    printfn "TAGS : %A tagStr: %s" tags tagStr
-    printfn "ACTOR : %s" ref
     actorRef<! GetHashtag tagStr
+    // printfn "HASHTAG TABLE : %s" tagStr
+    // engineRef<! DebugHashtagTable
 
     let ref2 = pickRandom(activeUserList);
     let actorRef2 = getUserRef ref2
-    printfn "MENTIONS : %A mentionStr: %s" mens mentionStr
-    printfn "ACTOR MENTION : %s" ref
     actorRef2<! GetMention mentionStr
+    // printfn "MENTION TABLE : %s" mentionStr
+    // engineRef<! DebugMentionTable
+
     while flag do ignore()
     0
