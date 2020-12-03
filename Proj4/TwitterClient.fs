@@ -27,23 +27,19 @@ let clientBehavior ref (inbox: Actor<Response>) =
             | HashtagList (hashStr, tweetList)->
                 let pmsg = "@" + ref + "'s hashtag query: " + hashStr + "\n"
                 printRef <! pmsg  
-                // printfn "%s's hashtag query: %s " ref hashStr
                 let mutable count = 1
                 for tweetObj in tweetList do
                     let currMsg = "\t"+(string count)+") " + tweetObj.Message + "\n"
                     printRef <! currMsg  
-                    // printfn "\t %i) %s" count tweetObj.Message 
                     count<-count+1 
                                
             | MentionList (mentionStr,tweetList) ->
                 let pmsg = "@" + ref + "'s mention query: " + mentionStr + "\n"
                 printRef <! pmsg  
-                // printfn "%s's mention query: %s " ref mentionStr
                 let mutable count = 1
                 for tweetObj in tweetList do
                     let currMsg = "\t"+(string count)+") " + tweetObj.Message + "\n"
                     printRef <! currMsg 
-                    // printfn "\t %i) %s" count tweetObj.Message
                     count<-count+1
             | SendTweet (m) -> engineRef <! CmdTweet(ref, m)
             | SendRetweet -> 
