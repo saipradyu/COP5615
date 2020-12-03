@@ -13,13 +13,13 @@ let engineBehavior (inbox: Actor<Command>) =
 
     let generateConnected (l: string list) = 
       let len = l.Length |> float
-      let picklen = (len * 0.75) |> int
+      let picklen = (len * 0.80) |> int
       l |> List.sortBy (fun _ -> random.Next()) |> List.take picklen
     
     let broadcastReady l = 
       let uids = users |> Map.toSeq |> Seq.map fst |> Seq.toList
-      ///let connected = generateConnected uids
-      Set.intersect (Set.ofList l) (Set.ofList activeUsers) |> Set.toList |> List.map (getUserRef)    
+      let connected = generateConnected uids
+      Set.intersect (Set.ofList l) (Set.ofList connected) |> Set.toList |> List.map (getUserRef)    
 
     let broadcastResponse l m = 
       let refs = broadcastReady l

@@ -13,6 +13,10 @@ let main argv =
     // let numOfTweets = argv.[1] |>int
     let numOfUsers = 30
     let numOfTweets = 5
+    let actorOfSink (f : 'a -> unit) = actorOf f
+    let print msg =  printfn "%s" msg
+    let printref = actorOfSink print |> spawn system "print"
+
     let tweetLines = File.ReadAllLines(@"gentweets.txt")
     let tweetList = Seq.toList tweetLines
     // printfn " %A " tweetList
@@ -57,32 +61,34 @@ let main argv =
 
     // engineRef <! DebugTweetTable
     // Send retweet
-    // for i=0 to numOfTweets-1 do
-    //     let ref = pickRandom(activeUserList);
-    //     let tweet = pickRandom(tweetList)
-    //     // let actorRef = getUserRef ref
-    //     // engineRef <! Register ref
-    //     // engineRef <! Login ref
-    //     printfn "[MAIN] RETWEET : %s" ref
-    //     let actorRefTest = getUserRef ref
-    //     actorRefTest <! SendRetweet
+    for i=0 to numOfTweets-1 do
+        let ref = pickRandom(activeUserList);
+        let tweet = pickRandom(tweetList)
+        // let actorRef = getUserRef ref
+        // engineRef <! Register ref
+        // engineRef <! Login ref
+        printfn "[MAIN] RETWEET : %s" ref
+        let actorRefTest = getUserRef ref
+        actorRefTest <! SendRetweet
  
     // Query mentions and Hashtags
     let tweetStr = pickRandom(activeTweets)
-    let tags = patternMatch tweetStr hpat
-    let tagStr = pickRandom tags
-    let ref = pickRandom(activeUserList);
-    let actorRef = getUserRef ref
-    actorRef<! GetHashtag tagStr
+    let tags = (patternMatch tweetStr hpat) |> sanitize
+    if (tags.Length > 0) then
+      let tagStr = pickRandom tags
+      let ref = pickRandom(activeUserList);
+      let actorRef = getUserRef ref
+      actorRef<! GetHashtag tagStr
     // printfn "HASHTAG TABLE : %s" tagStr
     // engineRef<! DebugHashtagTable
 
     let tweetStr2 = pickRandom(activeTweets)
-    let mens = patternMatch tweetStr2 mpat
-    let mentionStr = pickRandom mens
-    let ref2 = pickRandom(activeUserList);
-    let actorRef2 = getUserRef ref2
-    actorRef2<! GetMention mentionStr
+    let mens = (patternMatch tweetStr2 mpat) |> sanitize
+    if (mens.Length > 0) then
+      let mentionStr = pickRandom mens
+      let ref2 = pickRandom(activeUserList);
+      let actorRef2 = getUserRef ref2
+      actorRef2<! GetMention mentionStr
     // printfn "MENTION TABLE : %s" mentionStr
     // engineRef<! DebugMentionTable
 

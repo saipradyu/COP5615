@@ -10,19 +10,20 @@ let clientBehavior ref (inbox: Actor<Response>) =
         actor {
             let! msg = inbox.Receive()
             let engineRef = getUserRef "engine"
+            let printRef = getUserRef "print"
             Thread.Sleep(1000)
             match msg with
             | TweetFeed (s, t) ->
-                printfn "%s's Timeline update:" ref
-                printfn "%s has tweeted with message: %s" s t.Message
+                let pmsg = ref + @"'s Timeline update:" + "\n" + s + @" has tweeted with message: " + t.Message
+                printRef <! pmsg
                 timelineTweets <- t :: timelineTweets
             | RetweetFeed (s, t) ->
-                printfn "%s's Timeline update:" ref
-                printfn "%s has retweeted: %s" s t.Message
+                let pmsg = ref + @"'s Timeline update: " + "\n" + s + @" has retweeted with message: " + t.Message
+                printRef <! pmsg
                 timelineTweets <- t :: timelineTweets
             | MentionFeed (s, t) ->
-                printfn "%s's Timeline update:" ref
-                printfn "%s has mentioned you in tweet with message: %s" s t.Message
+                let pmsg = ref + @"'s Timeline update: " + "\n" + s + @" has mentioned you in tweet with message: " + t.Message
+                printRef <! pmsg
                 timelineTweets <- t :: timelineTweets
             | HashtagList (hashStr, tweetList)->
                 printfn "%s's hashtag query: %s " ref hashStr
@@ -38,9 +39,12 @@ let clientBehavior ref (inbox: Actor<Response>) =
                     count<-count+1
             | SendTweet (m) -> engineRef <! CmdTweet(ref, m)
             | SendRetweet -> 
-                let randomTweet = pickRandom timelineTweets
-                printfn "%s TIMELINE RANDOM TWEET : %s  and tweet ID %i" ref randomTweet.Message randomTweet.Id
-                engineRef <! CmdRetweet (ref,randomTweet.Id)
+                if (timelineTweets.Length > 0) then
+                  let randomTweet = pickRandom timelineTweets
+                  printfn "%s TIMELINE RANDOM TWEET : %s  and tweet ID %i" ref randomTweet.Message randomTweet.Id
+                  engineRef <! CmdRetweet (ref,randomTweet.Id)
+                else 
+                  printfn "Nothing to Retweet here"  
             | GetHashtag (hashtagStr) ->
                 engineRef <! QueryHashtag (hashtagStr)
             | GetMention (mentionStr) ->
