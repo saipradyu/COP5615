@@ -5,6 +5,7 @@ open TwitterEngine
 open TwitterClient
 open System.IO
 open System.Threading
+open MathNet.Numerics.Distributions
 
 let generateUsers numOfUsers = 
     let mutable (userList:string List) = List.empty
@@ -28,19 +29,27 @@ let main argv =
     let mutable flag = true
     // let numOfUsers = argv.[0] |>int
     // let numOfTweets = argv.[1] |>int
-    let numOfUsers = 30
+    let numOfUsers = 10
     let numOfTweets = 5
+    let maxSubscribers = 5
     let actorOfSink (f : 'a -> unit) = actorOf f
     let print msg =  printfn "%s" msg
     let printref = actorOfSink print |> spawn system "print"
-
+    let engineRef = spawn system "engine" engineBehavior
     // let tweetLines = File.ReadAllLines(@"gentweets.txt")
     // let tweetList = Seq.toList tweetLines
-
     let userList = generateUsers numOfUsers
+    for user in userList do
+        engineRef <! Register user
+        spawn system user (clientBehavior user) |> ignore
+    Thread.Sleep(1000)
+
     let hashTagLines = File.ReadAllLines(@"hashtags.txt")
     let hashtagList = Seq.toList hashTagLines
     // printfn " %A " hashtagList
+    let mutable subCountMap = Map.empty
+    let mutable userSubMap = Map.empty
+
     // let tweetList = generateTweets userList hashtagList
     let mutable tweetList = List.empty
     let len = userList.Length
@@ -50,36 +59,57 @@ let main argv =
         let msg = "Lorem ipsum tweet. @"+mention+" "+hashtag
         tweetList<-msg::tweetList
     printfn " %A " tweetList
+
+    let pickRandLen l c = 
+      l |> List.sortBy (fun _ -> random.Next()) |> List.take c
+
+    let zipfSub = Zipf(0.8, maxSubscribers)   
+
+    for i in [1..numOfUsers] do
+      let sample = zipfSub.Sample()
+      subCountMap <- subCountMap.Add(i, sample)
+ 
+    for i in [1..numOfUsers] do
+      let pool = [1..numOfUsers] |> List.except (List.singleton i)
+      let scount = subCountMap.TryFind(i).Value
+      let slist = pickRandLen pool scount
+      let mutable subscriberList = List.empty
+      for followerID in slist do
+        subscriberList<- ("user"+(string followerID)):: subscriberList
+      let userName = "user"+(string i)
+      userSubMap <- userSubMap.Add(userName, subscriberList)
   
-    // let userLines = File.ReadAllLines(@"usernames.txt")
-    // let userList = Seq.toList userLines
-   
-    let engineRef = spawn system "engine" engineBehavior
-    for user in userList do
-        engineRef <! Register user
-        spawn system user (clientBehavior user) |> ignore
     let mutable looping = true
     let mutable activeUserList = List.empty
     let mutable count = 0
     let mutable activeTweets = List.empty
-    while looping do
-        let user = pickRandom userList
-        activeUserList<-user::activeUserList
-        count<-count+1
-        if(count=userList.Length/2) then
-            looping<-false
-    for user in activeUserList do
-        engineRef <! Login user
-        
-    for user in activeUserList do
-        let mutable followerList = List.empty
-        for i = 0 to (userList.Length/2) do
-            let follower = pickRandom(userList);
-            // Follower shouldnt be the currect username and the follower actor should be present in the system
-            if not (follower.Equals(user))  then 
-                followerList<- follower::followerList
+
+    for userRecord in userSubMap do
+        let followerList = userRecord.Value
+        let currUser = userRecord.Key
+        activeUserList<-currUser::activeUserList
         for follower in followerList do
-            engineRef<! Subscribe (follower,user)
+            engineRef<! Subscribe (follower,currUser)
+    Thread.Sleep(1000)
+
+    // while looping do
+    //     let user = pickRandom userList
+    //     activeUserList<-user::activeUserList
+    //     count<-count+1
+    //     if(count=userList.Length/2) then
+    //         looping<-false
+    // for user in activeUserList do
+    //     engineRef <! Login user
+        
+    // for user in activeUserList do
+    //     let mutable followerList = List.empty
+    //     for i = 0 to (userList.Length/2) do
+    //         let follower = pickRandom(userList);
+    //         // Follower shouldnt be the currect username and the follower actor should be present in the system
+    //         if not (follower.Equals(user))  then 
+    //             followerList<- follower::followerList
+    //     for follower in followerList do
+    //         engineRef<! Subscribe (follower,user)
     
     for i=0 to (20*numOfTweets-1) do
         let ref = pickRandom(userList);
