@@ -11,18 +11,17 @@ let clientBehavior ref (inbox: Actor<Response>) =
             let! msg = inbox.Receive()
             let engineRef = getUserRef "engine"
             let printRef = getUserRef "print"
-            Thread.Sleep(1000)
             match msg with
             | TweetFeed (s, t) ->
-                let pmsg = ref + @"'s Timeline update:" + "\n" + s + @" has tweeted with message: " + t.Message
+                let pmsg = "@"+ref + "'s Timeline update: " + "\n @" + s + " has tweeted with message: "+"\n \t" + t.Message
                 printRef <! pmsg
                 timelineTweets <- t :: timelineTweets
             | RetweetFeed (s, t) ->
-                let pmsg = ref + @"'s Timeline update: " + "\n" + s + @" has retweeted with message: " + t.Message
+                let pmsg = "@"+ref + "'s Timeline update: " + "\n @" + s + " has retweeted with message: "+"\n \t" + t.Message
                 printRef <! pmsg
                 timelineTweets <- t :: timelineTweets
             | MentionFeed (s, t) ->
-                let pmsg = ref + @"'s Timeline update: " + "\n" + s + @" has mentioned you in tweet with message: " + t.Message
+                let pmsg = "@"+ref + "'s Timeline update: " + "\n @" + s + " has mentioned you in tweet with message: "+"\n \t" + t.Message
                 printRef <! pmsg
                 timelineTweets <- t :: timelineTweets
             | HashtagList (hashStr, tweetList)->

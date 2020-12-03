@@ -77,22 +77,22 @@ let engineBehavior (inbox: Actor<Command>) =
       users <- users.Add(s, update)
       printfn "%s has subscribed to %s's Tweets " u s
 
-    let handleTweet s m = 
-      let record = (users.TryFind s).Value
+    let handleTweet sender tweetStr = 
+      let record = (users.TryFind sender).Value
       let ids = tweets |> Map.toSeq |> Seq.map fst 
       let tid = genUniqueTID ids
-      let tweet = { Id = tid; Message = m}
-      let mens = patternMatch m mpat
-      let tags = patternMatch m hpat
+      let tweet = { Id = tid; Message = tweetStr}
+      let mens = patternMatch tweetStr mpat
+      let tags = patternMatch tweetStr hpat
       insertTags tags tweet
       insertMentions mens tweet
       let update = { record with TweetList = tweet::record.TweetList }
-      users <- users.Add(s, update)
+      users <- users.Add(sender, update)
       tweets <- tweets.Add(tid, tweet)
-      let tmsg = TweetFeed (s, tweet)
+      let tmsg = TweetFeed (sender, tweet)
       broadcastResponse update.Followers tmsg
-      let mmsg = MentionFeed (s, tweet)
-      broadcastResponse update.Followers mmsg
+      let mmsg = MentionFeed (sender, tweet)
+      broadcastResponse mens mmsg
      
     let handleRetweet s tid = 
       let tweet = (tweets.TryFind tid).Value  
@@ -127,7 +127,7 @@ let engineBehavior (inbox: Actor<Command>) =
             | Login (u) -> handleLogin u
             | Logout (u) -> handleLogout u
             | Subscribe(u, s) -> handleSubscribe u s
-            | CmdTweet(s, m) -> handleTweet s m
+            | CmdTweet(sender, message) -> handleTweet sender message
             | CmdRetweet(s, tid) -> handleRetweet s tid
             | QueryHashtag (hashStr) -> queryHashtag senderRef hashStr
             | QueryMention(mentionStr) -> queryMention senderRef mentionStr

@@ -6,6 +6,23 @@ open TwitterClient
 open System.IO
 open System.Threading
 
+let generateUsers numOfUsers = 
+    let mutable (userList:string List) = List.empty
+    for i=1 to numOfUsers do
+        userList<- ("user"+(string i))::userList
+    userList
+
+// let generateTweets userList hashtagList = 
+//     let mutable tweetList = List.empty
+//     let len = userList.Length
+//     for i=0 to len-1 do
+//         let mention  = pickRandom(userList)
+//         let hashtag = pickRandom(hashtagList)
+//         let user = pickRandom(userList)
+//         let msg = user+" has tweeted. @"+mention+" #"+hashtag
+//         tweetList<-msg::tweetList
+//     tweetList
+
 [<EntryPoint>]
 let main argv =
     let mutable flag = true
@@ -17,14 +34,26 @@ let main argv =
     let print msg =  printfn "%s" msg
     let printref = actorOfSink print |> spawn system "print"
 
-    let tweetLines = File.ReadAllLines(@"gentweets.txt")
-    let tweetList = Seq.toList tweetLines
-    // printfn " %A " tweetList
+    // let tweetLines = File.ReadAllLines(@"gentweets.txt")
+    // let tweetList = Seq.toList tweetLines
+
+    let userList = generateUsers numOfUsers
     let hashTagLines = File.ReadAllLines(@"hashtags.txt")
     let hashtagList = Seq.toList hashTagLines
     // printfn " %A " hashtagList
-    let userLines = File.ReadAllLines(@"usernames.txt")
-    let userList = Seq.toList userLines
+    // let tweetList = generateTweets userList hashtagList
+    let mutable tweetList = List.empty
+    let len = userList.Length
+    for i=0 to len-1 do
+        let mention  = pickRandom(userList)
+        let hashtag = pickRandom(hashtagList).Trim()
+        let msg = "Lorem ipsum tweet. @"+mention+" "+hashtag
+        tweetList<-msg::tweetList
+    printfn " %A " tweetList
+  
+    // let userLines = File.ReadAllLines(@"usernames.txt")
+    // let userList = Seq.toList userLines
+   
     let engineRef = spawn system "engine" engineBehavior
     for user in userList do
         engineRef <! Register user
@@ -52,7 +81,7 @@ let main argv =
         for follower in followerList do
             engineRef<! Subscribe (follower,user)
     
-    for i=0 to (numOfTweets-1) do
+    for i=0 to (20*numOfTweets-1) do
         let ref = pickRandom(userList);
         let tweet = pickRandom(tweetList)
         let actorRef = getUserRef ref
@@ -61,7 +90,7 @@ let main argv =
 
     // engineRef <! DebugTweetTable
     // Send retweet
-    for i=0 to numOfTweets-1 do
+    for i=0 to 20*numOfTweets-1 do
         let ref = pickRandom(activeUserList);
         let tweet = pickRandom(tweetList)
         // let actorRef = getUserRef ref
@@ -72,23 +101,23 @@ let main argv =
         actorRefTest <! SendRetweet
  
     // Query mentions and Hashtags
-    let tweetStr = pickRandom(activeTweets)
-    let tags = (patternMatch tweetStr hpat) |> sanitize
-    if (tags.Length > 0) then
-      let tagStr = pickRandom tags
-      let ref = pickRandom(activeUserList);
-      let actorRef = getUserRef ref
-      actorRef<! GetHashtag tagStr
+    // let tweetStr = pickRandom(activeTweets)
+    // let tags = (patternMatch tweetStr hpat) 
+    // if (tags.Length > 0) then
+    //   let tagStr = pickRandom tags
+    //   let ref = pickRandom(activeUserList);
+    //   let actorRef = getUserRef ref
+    //   actorRef<! GetHashtag tagStr
     // printfn "HASHTAG TABLE : %s" tagStr
     // engineRef<! DebugHashtagTable
 
-    let tweetStr2 = pickRandom(activeTweets)
-    let mens = (patternMatch tweetStr2 mpat) |> sanitize
-    if (mens.Length > 0) then
-      let mentionStr = pickRandom mens
-      let ref2 = pickRandom(activeUserList);
-      let actorRef2 = getUserRef ref2
-      actorRef2<! GetMention mentionStr
+    // let tweetStr2 = pickRandom(activeTweets)
+    // let mens = (patternMatch tweetStr2 mpat)
+    // if (mens.Length > 0) then
+    //   let mentionStr = pickRandom mens
+    //   let ref2 = pickRandom(activeUserList);
+    //   let actorRef2 = getUserRef ref2
+    //   actorRef2<! GetMention mentionStr
     // printfn "MENTION TABLE : %s" mentionStr
     // engineRef<! DebugMentionTable
 
