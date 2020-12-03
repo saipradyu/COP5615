@@ -60,9 +60,6 @@ let main argv =
         tweetList<-msg::tweetList
     printfn " %A " tweetList
 
-    let pickRandLen l c = 
-      l |> List.sortBy (fun _ -> random.Next()) |> List.take c
-
     let zipfSub = Zipf(0.8, maxSubscribers)   
 
     for i in [1..numOfUsers] do

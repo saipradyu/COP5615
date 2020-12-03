@@ -14,7 +14,7 @@ let engineBehavior (inbox: Actor<Command>) =
     let generateConnected (l: string list) = 
       let len = l.Length |> float
       let picklen = (len * 0.80) |> int
-      l |> List.sortBy (fun _ -> random.Next()) |> List.take picklen
+      pickRandLen l picklen
     
     let broadcastReady l = 
       let uids = users |> Map.toSeq |> Seq.map fst |> Seq.toList

@@ -9,6 +9,9 @@ let mpat = @"\B@\w\w+"
 let system = ActorSystem.Create("FSharp")
 let random = System.Random()
 
+let pickRandLen l c = 
+    l |> List.sortBy (fun _ -> random.Next()) |> List.take c
+
 let pickRandom (l: List<_>) =
     let r = System.Random()
     let randomItem = l.[r.Next(l.Length)]
