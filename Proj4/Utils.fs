@@ -59,6 +59,9 @@ let getUserRef u =
     let actorPath = @"akka://FSharp/user/" + string u
     select actorPath system
 
+let getUserId id = 
+    "User" + string id
+
 let sanitize l =
     List.map ((string) >> (fun x -> x.Substring(1))) l
 
