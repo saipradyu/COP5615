@@ -13,8 +13,8 @@ let main argv =
     let mutable flag = true
     // let numOfUsers = argv.[0] |>int
     // let numOfTweets = argv.[1] |>int
-    let numOfUsers = 1000
-    let maxSubscribers = 500
+    let numOfUsers = 10
+    let maxSubscribers = 5
     let hashTagLines = File.ReadAllLines(@"hashtags.txt")
     let hashtagList = Seq.toList hashTagLines
     let actorOfSink (f : 'a -> unit) = actorOf f
@@ -23,7 +23,8 @@ let main argv =
     let engineRef = spawn system "engine" engineBehavior    
     let mutable subCountMap = Map.empty
     let mutable userSubMap = Map.empty
-
+    let mutable (userList:string List) = List.empty
+  
     let zipfSub = Zipf(0.8, maxSubscribers)   
 
     for i in [1..numOfUsers] do
@@ -38,6 +39,7 @@ let main argv =
 
     for i in [1..numOfUsers] do
       let uid = getUserId i
+      userList<-uid::userList
       engineRef <! Register uid
       spawn system uid (clientBehavior uid) |> ignore
 
@@ -53,8 +55,8 @@ let main argv =
     Thread.Sleep(1000)   
 
     let composeRandTweet u = 
-      let pool = [1..numOfUsers] |> List.except(List.singleton u)
-      let randMen = getUserId (pickRandom pool) 
+      let pool =  [1..numOfUsers] |> List.except(List.singleton u)
+      let randMen = getUserId (pickRandom pool)
       let randHash = pickRandom hashtagList
       "This is a random tweet with a random mention @" + randMen + " and a random hashtag #" + randHash
 
@@ -68,6 +70,22 @@ let main argv =
       let uid = getUserId u
       let cref = getUserRef uid
       cref <! SendRetweet
-   
+     
+    let mutable counter = userSubMap.Count
+    
+    while (counter > 0) do
+        for userIdx in [1..numOfUsers] do
+            let followerIdxList = (userSubMap.TryFind(userIdx)).Value
+            let tweetStr = composeRandTweet userIdx
+            if followerIdxList.Length > 0 then 
+                let follower = pickRandom followerIdxList
+                let followerRef = getUserId follower
+                let followerActor = getUserRef followerRef
+                let updateFollowerList = remove follower followerIdxList
+                userSubMap<-userSubMap.Add(userIdx,updateFollowerList)
+                followerActor<!SendTweet(tweetStr)
+            else
+                counter<-counter-1 
+
     while flag do ignore()
     0

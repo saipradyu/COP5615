@@ -86,9 +86,9 @@ let engineBehavior (inbox: Actor<Command>) =
       let tags = patternMatch tweetStr hpat
       insertTags tags tweet
       insertMentions mens tweet
-      printfn "ENGINE:handleTweet Tags  "
-      for tag in tags do 
-        printfn "tag:%s TweetList:%A" tag (hashtags.TryFind tag)
+      // printfn "ENGINE:handleTweet Tags  "
+      // for tag in tags do 
+      //   printfn "tag:%s TweetList:%A" tag (hashtags.TryFind tag)
       let update = { record with TweetList = tweet::record.TweetList }
       users <- users.Add(sender, update)
       tweets <- tweets.Add(tid, tweet)
