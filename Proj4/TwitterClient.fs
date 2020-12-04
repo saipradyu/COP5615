@@ -45,7 +45,6 @@ let clientBehavior ref (inbox: Actor<Response>) =
             | SendRetweet -> 
                 if (timelineTweets.Length > 0) then
                   let randomTweet = pickRandom timelineTweets
-                  printfn "%s TIMELINE RANDOM TWEET : %s  and tweet ID %i" ref randomTweet.Message randomTweet.Id
                   engineRef <! CmdRetweet (ref,randomTweet.Id)
                 else 
                   printfn "Nothing to Retweet here"  

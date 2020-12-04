@@ -86,9 +86,6 @@ let engineBehavior (inbox: Actor<Command>) =
       let tags = patternMatch tweetStr hpat
       insertTags tags tweet
       insertMentions mens tweet
-      // printfn "ENGINE:handleTweet Tags  "
-      // for tag in tags do 
-      //   printfn "tag:%s TweetList:%A" tag (hashtags.TryFind tag)
       let update = { record with TweetList = tweet::record.TweetList }
       users <- users.Add(sender, update)
       tweets <- tweets.Add(tid, tweet)
@@ -111,7 +108,6 @@ let engineBehavior (inbox: Actor<Command>) =
     let queryHashtag senderRef hashStr = 
       if (hashtags.TryFind hashStr).IsSome then
         let hashtagObj = (hashtags.TryFind hashStr).Value 
-        // let userActor = getUserRef senderRef
         senderRef <! HashtagList(hashStr,hashtagObj.TweetList)
       else
         printfn "Cannot find hashtag : %s" hashStr
@@ -119,7 +115,6 @@ let engineBehavior (inbox: Actor<Command>) =
     let queryMention senderRef mentionStr =
       if (mentions.TryFind mentionStr).IsSome then 
         let mentionObj = (mentions.TryFind mentionStr).Value 
-        // let userActor = getUserRef senderRef
         senderRef <! MentionList(mentionStr,mentionObj.TweetList)
       else
         printfn "Cannot find mention : %s" mentionStr
