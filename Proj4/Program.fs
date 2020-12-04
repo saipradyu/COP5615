@@ -22,7 +22,7 @@ let main argv =
     let engineRef = spawn system "engine" engineBehavior    
     let mutable subCountMap = Map.empty
     let mutable userSubMap = Map.empty
-  
+    let mutable activeTweets = List.empty
     sw.Start()
     let zipfSub = Zipf(0.8, maxSubscribers)   
 
@@ -62,6 +62,7 @@ let main argv =
       let uid = getUserId u
       let cref = getUserRef uid
       let rmsg = composeRandTweet u
+      activeTweets <-rmsg::activeTweets
       cref <! SendTweet rmsg
 
     let performRetweet u =
@@ -75,14 +76,47 @@ let main argv =
     let simCompleteCheck b = 
       b |> Map.toSeq |> Seq.map snd |> Seq.fold (&&) true
 
+    let getRandom() =
+        let rand = System.Random()
+        rand.Next(100)
+    let generateRandProb = 
+        let probVal = getRandom
+        probVal
+    
     while (not (simCompleteCheck boolMap)) do
       for KeyValue(key, value) in subCountMap do
         if (value > 0) then 
-          performTweet key
-          subCountMap <- subCountMap.Add(key, value - 1)
+          let probVal = generateRandProb()
+          printfn "[PROGRAM] %i" probVal
+          if(probVal<=80) then
+            performTweet key
+            subCountMap <- subCountMap.Add(key, value - 1)
+          else
+            performRetweet key
+            subCountMap <- subCountMap.Add(key, value - 1)
         else 
           boolMap <- boolMap.Add(key, true)  
     
+    let tweetStr = pickRandom(activeTweets)
+    let tags = (patternMatch tweetStr hpat) 
+    if (tags.Length > 0) then
+      let tagStr:string = pickRandom tags
+      printfn "[PROGRAM] tagStr : %s  " tagStr
+      let userID = pickRandom([1..numOfUsers])
+      let ref = getUserId userID;
+      let actorRef = getUserRef ref
+      actorRef<! GetHashtag tagStr
+
+
+    let tweetStr2 = pickRandom(activeTweets)
+    let mens = (patternMatch tweetStr2 mpat)
+    if (mens.Length > 0) then
+      let mentionStr = pickRandom mens
+      let userID = pickRandom([1..numOfUsers])
+      let ref2 = getUserId userID;
+      let actorRef2 = getUserRef ref2
+      actorRef2<! GetMention mentionStr
+
     sw.Stop()
     Thread.Sleep(5000)   
     printfn "Simulation completed in %A" sw.ElapsedMilliseconds
