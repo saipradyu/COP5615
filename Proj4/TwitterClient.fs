@@ -15,15 +15,18 @@ let clientBehavior ref (inbox: Actor<Response>) =
             | TweetFeed (s, t) ->
                 let pmsg = "@"+ref + "'s Timeline update: " + "\n @" + s + " has tweeted with message: "+"\n \t" + t.Message
                 printRef <! pmsg
-                timelineTweets <- t :: timelineTweets
+                if not (List.contains t timelineTweets) then
+                    timelineTweets <- t :: timelineTweets
             | RetweetFeed (s, t) ->
                 let pmsg = "@"+ref + "'s Timeline update: " + "\n @" + s + " has retweeted with message: "+"\n \t" + t.Message
                 printRef <! pmsg
-                timelineTweets <- t :: timelineTweets
+                if not (List.contains t timelineTweets) then
+                    timelineTweets <- t :: timelineTweets
             | MentionFeed (s, t) ->
                 let pmsg = "@"+ref + "'s Timeline update: " + "\n @" + s + " has mentioned you in tweet with message: "+"\n \t" + t.Message
                 printRef <! pmsg
-                timelineTweets <- t :: timelineTweets
+                if not (List.contains t timelineTweets) then
+                    timelineTweets <- t :: timelineTweets
             | HashtagList (hashStr, tweetList)->
                 let pmsg = "@" + ref + "'s hashtag query: " + hashStr + "\n"
                 printRef <! pmsg  

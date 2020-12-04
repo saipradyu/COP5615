@@ -87,7 +87,6 @@ let main argv =
       for KeyValue(key, value) in subCountMap do
         if (value > 0) then 
           let probVal = generateRandProb()
-          printfn "[PROGRAM] %i" probVal
           if(probVal<=80) then
             performTweet key
             subCountMap <- subCountMap.Add(key, value - 1)
@@ -101,7 +100,6 @@ let main argv =
     let tags = (patternMatch tweetStr hpat) 
     if (tags.Length > 0) then
       let tagStr:string = pickRandom tags
-      printfn "[PROGRAM] tagStr : %s  " tagStr
       let userID = pickRandom([1..numOfUsers])
       let ref = getUserId userID;
       let actorRef = getUserRef ref
@@ -117,15 +115,15 @@ let main argv =
       let actorRef2 = getUserRef ref2
       actorRef2<! GetMention mentionStr
     
-    let randUserID = pickRandom([1..numOfUsers])
-    let ref3 = getUserId randUserID;
-    let actorRef3 = getUserRef ref3
-    actorRef3<! ViewTimeline
-
+    // let randUserID = pickRandom([1..numOfUsers])
+    // let ref3 = getUserId randUserID;
+    // let actorRef3 = getUserRef ref3
+    // actorRef3<! ViewTimeline
 
     sw.Stop()
     Thread.Sleep(5000)   
-    printfn "Simulation completed in %A" sw.ElapsedMilliseconds
+    let msg = "Simulation completed in %A" sw.ElapsedMilliseconds
+    File.WriteAllText(@"output.txt",msg)
          
     while flag do ignore()
     0

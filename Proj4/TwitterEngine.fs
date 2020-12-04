@@ -103,7 +103,7 @@ let engineBehavior (inbox: Actor<Command>) =
         let rmsg = RetweetFeed (s, tweet)
         broadcastResponse update.Followers rmsg
       else
-        printfn "ENGINE:RETWEET - Error"
+        printfn "Cannot find tweet to retweet "
     
     let queryHashtag senderRef hashStr = 
       if (hashtags.TryFind hashStr).IsSome then
