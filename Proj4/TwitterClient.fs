@@ -29,7 +29,7 @@ let clientBehavior ref (inbox: Actor<Response>) =
                 printRef <! pmsg  
                 let mutable count = 1
                 for tweetObj in tweetList do
-                    let currMsg = "\t"+(string count)+") " + tweetObj.Message + "\n"
+                    let currMsg = "\t HT"+(string count)+") " + tweetObj.Message + "\n"
                     printRef <! currMsg  
                     count<-count+1 
                                
@@ -38,7 +38,7 @@ let clientBehavior ref (inbox: Actor<Response>) =
                 printRef <! pmsg  
                 let mutable count = 1
                 for tweetObj in tweetList do
-                    let currMsg = "\t"+(string count)+") " + tweetObj.Message + "\n"
+                    let currMsg = "\t MT"+(string count)+") " + tweetObj.Message + "\n"
                     printRef <! currMsg 
                     count<-count+1
             | SendTweet (m) -> engineRef <! CmdTweet(ref, m)
@@ -52,7 +52,14 @@ let clientBehavior ref (inbox: Actor<Response>) =
                 engineRef <! QueryHashtag (hashtagStr)
             | GetMention (mentionStr) ->
                 engineRef <! QueryMention (mentionStr)
-
+            | ViewTimeline ->
+                let pmsg = "View @" + ref + "'s timeline : " + "\n"
+                printRef <! pmsg  
+                let mutable count = 1
+                for tweetObj in timelineTweets do
+                    let currMsg = "\t TT"+(string count)+") " + tweetObj.Message + "\n"
+                    printRef <! currMsg 
+                    count<-count+1
             return! loop ()
         }
 

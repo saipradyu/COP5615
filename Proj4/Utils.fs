@@ -53,7 +53,8 @@ type Response =
     | GetHashtag of string
     | HashtagList of string * Tweet List
     | GetMention of string
-    | MentionList of string * Tweet List
+    | MentionList of string * Tweet List 
+    | ViewTimeline 
     
 let getUserRef u =
     let actorPath = @"akka://FSharp/user/" + string u

@@ -116,6 +116,12 @@ let main argv =
       let ref2 = getUserId userID;
       let actorRef2 = getUserRef ref2
       actorRef2<! GetMention mentionStr
+    
+    let randUserID = pickRandom([1..numOfUsers])
+    let ref3 = getUserId randUserID;
+    let actorRef3 = getUserRef ref3
+    actorRef3<! ViewTimeline
+
 
     sw.Stop()
     Thread.Sleep(5000)   
