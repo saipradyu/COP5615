@@ -56,7 +56,18 @@ let main argv =
       let pool = [1..numOfUsers] |> List.except(List.singleton u)
       let randMen = getUserId (pickRandom pool) 
       let randHash = pickRandom hashtagList
-      "This is a random tweet with a random mention @" + randMen + " and a random hashtag #" + randHash  
+      "This is a random tweet with a random mention @" + randMen + " and a random hashtag #" + randHash
 
+    let performTweet u = 
+      let uid = getUserId u
+      let cref = getUserRef uid
+      let rmsg = composeRandTweet u
+      cref <! SendTweet rmsg
+
+    let performRetweet u =
+      let uid = getUserId u
+      let cref = getUserRef uid
+      cref <! SendRetweet
+   
     while flag do ignore()
     0
