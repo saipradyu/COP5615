@@ -14,7 +14,7 @@ let engineBehavior (inbox: Actor<Command>) =
 
     let generateConnected (l: string list) = 
       let len = l.Length |> float
-      let picklen = (len * 0.80) |> int
+      let picklen = (len * 0.30) |> int
       pickRandLen l picklen
     
     let broadcastReady l = 

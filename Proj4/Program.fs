@@ -11,8 +11,9 @@ open MathNet.Numerics.Distributions
 [<EntryPoint>]
 let main argv =
     let mutable flag = true
-    let numOfUsers = 1000
-    let maxSubscribers = 100
+    if (argv.Length <> 2) then failwith "Need two arguments i.e numOfUsers and maxSubscribers"
+    let numOfUsers = argv.[0] |> int 
+    let maxSubscribers = argv.[1] |> int
     let sw = System.Diagnostics.Stopwatch()
     let hashTagLines = File.ReadAllLines(@"hashtags.txt")
     let hashtagList = Seq.toList hashTagLines
@@ -106,6 +107,8 @@ let main argv =
               printfn "Tweets and Retweets completed for each user"
               sw.Stop()
               printfn "Simulation completed in %A" sw.ElapsedMilliseconds
+              Thread.Sleep(1000)
+              flag <- false
           return! loop()
         }
       loop()
