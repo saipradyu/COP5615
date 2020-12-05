@@ -106,7 +106,7 @@ let main argv =
             if (tcount = subCount) then
               printfn "Tweets and Retweets generated and served proportionate to subscriber count"
               sw.Stop()
-              printfn "Simulation completed in %A" sw.ElapsedMilliseconds
+              printfn "Simulation of a Twitter clone network distributing %i unique tweets completed in %A" subCount sw.ElapsedMilliseconds
               Thread.Sleep(1000)
               flag <- false
           return! loop()
