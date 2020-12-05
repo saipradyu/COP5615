@@ -10,6 +10,7 @@ let engineBehavior (inbox: Actor<Command>) =
     let mutable mentions = Map.empty
     let mutable hashtags = Map.empty
     let mutable activeUsers = List.empty
+    let sref = getUserRef "simulation"
 
     let generateConnected (l: string list) = 
       let len = l.Length |> float
@@ -69,13 +70,13 @@ let engineBehavior (inbox: Actor<Command>) =
       else 
         let record = { Id = u; Followers = List.empty; TweetList = List.empty }
         users <- users.Add(u, record)
-        printfn "%s has been registered" u
+        sref <! RegisterAck
 
     let handleSubscribe u s = 
       let record = (users.TryFind s).Value
       let update = { record with Followers = u::record.Followers }
       users <- users.Add(s, update)
-      printfn "%s has subscribed to %s's Tweets " u s
+      sref <! SubscribeAck
 
     let handleTweet sender tweetStr = 
       let record = (users.TryFind sender).Value
@@ -93,6 +94,7 @@ let engineBehavior (inbox: Actor<Command>) =
       broadcastResponse update.Followers tmsg 
       let mmsg = MentionFeed (sender, tweet)
       broadcastResponse mens mmsg
+      sref <! TweetAck
      
     let handleRetweet s tid = 
       if (tweets.TryFind tid).IsSome then
@@ -102,6 +104,7 @@ let engineBehavior (inbox: Actor<Command>) =
         users <- users.Add(s, update)
         let rmsg = RetweetFeed (s, tweet)
         broadcastResponse update.Followers rmsg
+        sref <! TweetAck
       else
         printfn "Cannot find tweet to retweet "
     

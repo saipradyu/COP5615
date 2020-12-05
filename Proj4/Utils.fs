@@ -55,6 +55,12 @@ type Response =
     | GetMention of string
     | MentionList of string * Tweet List 
     | ViewTimeline 
+
+type SimResponse = 
+    | Start
+    | RegisterAck
+    | SubscribeAck
+    | TweetAck    
     
 let getUserRef u =
     let actorPath = @"akka://FSharp/user/" + string u
