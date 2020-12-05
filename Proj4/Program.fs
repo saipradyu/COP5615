@@ -79,7 +79,7 @@ let main argv =
           | RegisterAck -> 
             rcount <- rcount + 1
             if (rcount = numOfUsers) then 
-              printfn "Registration of user completed"
+              printfn "Registration of all users completed"
               for i in [1..numOfUsers] do
                 let sid = getUserId i
                 let slist = userSubMap.TryFind(i).Value
@@ -89,7 +89,7 @@ let main argv =
           | SubscribeAck -> 
             scount <- scount + 1
             if (scount = subCount) then
-              printfn "Subscription for each user completed"
+              printfn "Assigning of subscribers for each user in a Zipf distribution completed"
               while (not (simCompleteCheck boolMap)) do
                 for KeyValue(key, value) in subCountMap do
                   if (value > 0) then 
@@ -104,7 +104,7 @@ let main argv =
           | TweetAck -> 
             tcount <- tcount + 1
             if (tcount = subCount) then
-              printfn "Tweets and Retweets completed for each user"
+              printfn "Tweets and Retweets generated and served proportionate to subscriber count"
               sw.Stop()
               printfn "Simulation completed in %A" sw.ElapsedMilliseconds
               Thread.Sleep(1000)
